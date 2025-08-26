@@ -1,0 +1,265 @@
+/* === General Layout === */
+body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #5a67d8, #805ad5);
+  margin: 0;
+  padding: 0;
+}
+
+/* === Header / Navbar === */
+.header {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.8rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 700;
+  color: #4c51bf;
+  letter-spacing: 1px;
+}
+
+.logo-subtitle {
+  font-size: 12px;
+  color: #718096;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+.nav-link {
+  color: #4a5568;
+  font-weight: 500;
+  text-decoration: none;
+  transition: 0.3s ease;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.nav-link:hover {
+  background: #edf2f7;
+  color: #4c51bf;
+  transform: translateY(-2px);
+}
+
+/* === Layout === */
+.main-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1400px;
+}
+
+/* === Sidebar === */
+.userdash-sidebar {
+
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  color: #fff;
+
+  
+}
+.userdash-sidebar-content
+{
+   background: linear-gradient(180deg, #4c51bf, #6b46c1);
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  width: 380px;
+  height: 100vh;         /* ✅ full height */
+  position: fixed;       /* ✅ sidebar is now static, won’t move */
+  top: 80px;
+  left: 0;
+  overflow-y: auto;
+}
+
+.userdash-avatar {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.greeting {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.greeting-subtitle {
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+.userdash-activity {
+  margin: 1.5rem 0;
+}
+
+.userdash-activity-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 0.8rem;
+}
+
+.userdash-stats {
+  margin-top: 1rem;
+}
+
+.userdash-stat-item {
+  background: rgba(255,255,255,0.15);
+  padding: 0.7rem;
+  border-radius: 8px;
+  margin-bottom: 0.6rem;
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.userdash-btn-upgrade {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 10px;
+  background: #fff;
+  color: #4c51bf;
+  font-weight: bold;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.userdash-btn-upgrade:hover {
+  background: #edf2f7;
+}
+
+/* === Main Content === */
+.main-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-left: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Search Section */
+.search-section {
+  margin-bottom: 1.5rem;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.search-input-container {
+  flex: 1;
+  background: #f7fafc;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  background: transparent;
+  font-size: 14px;
+  padding-left: 6px;
+}
+
+.search-input::placeholder {
+  color: #a0aec0;
+}
+
+.filter-btn, .refresh-btn {
+  background: #edf2f7;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.filter-btn:hover, .refresh-btn:hover {
+  background: #e2e8f0;
+  transform: scale(1.05);
+}
+
+/* Table */
+.courses-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.table-header {
+  background: #f7fafc;
+}
+
+.table-heading {
+  font-size: 14px;
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.table-cell {
+  padding: 12px;
+  border-bottom: 1px solid #122d49;
+}
+
+.table-row:hover {
+  background: #f9f9ff;
+}
+
+/* Buttons */
+.btn-start-learning {
+  background: #4c51bf;
+  color: #fff;
+  font-weight: 500;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.btn-start-learning:hover {
+  background: #4338ca;
+  transform: translateY(-2px);
+}
+
+.btn-completed {
+  background: #48bb78;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: default;
+}
