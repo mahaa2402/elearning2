@@ -316,7 +316,7 @@ const CertificateDetails = () => {
 
       {/* User Progress Section */}
       <div className="progress-container">
-        <h2>📊 Learning Progress</h2>
+        {/* <h2>📊 Learning Progress</h2> */}
         
         {progressLoading ? (
           <div className="progress-loading">
@@ -394,27 +394,27 @@ const CertificateDetails = () => {
           </div>
         ) : (
           <div className="no-progress">
-            <p>📈 No learning progress data found for this employee</p>
-            <div className="debug-info" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px', fontSize: '14px' }}>
-              <h4>🔧 Debug Information:</h4>
-              <p><strong>Employee Email:</strong> {certificates[0]?.employeeEmail || 'Not found'}</p>
-              <p><strong>Employee ID:</strong> {certificates[0]?.employeeId || 'Not found'}</p>
-              <p><strong>Searched for progress using:</strong> {
-                certificates[0]?.employeeEmail 
-                  ? `Email: ${certificates[0].employeeEmail}${certificates[0]?.employeeId ? ` and ID: ${certificates[0].employeeId}` : ''}` 
-                  : certificates[0]?.employeeId 
-                    ? `ID: ${certificates[0].employeeId}` 
-                    : 'No identifier available'
-              }</p>
-              <p><strong>Possible solutions:</strong></p>
-              <ul style={{ marginLeft: '20px', marginTop: '10px' }}>
-                <li>Check if your backend has a progress/learning API endpoint</li>
-                <li>Verify the endpoint path matches your backend routes</li>
-                <li>Ensure the employee email/ID in certificates matches the progress data</li>
-                <li>Check browser Network tab for exact API responses</li>
-                <li>Verify authentication token has required permissions</li>
-              </ul>
-            </div>
+            {/* <p>📈 No learning progress data found for this employee</p> */}
+            {/* <div className="debug-info" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px', fontSize: '14px' }}> */}
+              {/* <h4>🔧 Debug Information:</h4> */}
+              {/* <p><strong>Employee Email:</strong> {certificates[0]?.employeeEmail || 'Not found'}</p> */}
+              {/* <p><strong>Employee ID:</strong> {certificates[0]?.employeeId || 'Not found'}</p> */}
+              {/* <p><strong>Searched for progress using:</strong> { */}
+                {/* certificates[0]?.employeeEmail  */}
+                  {/* ? `Email: ${certificates[0].employeeEmail}${certificates[0]?.employeeId ? ` and ID: ${certificates[0].employeeId}` : ''}`  */}
+                  {/* : certificates[0]?.employeeId  */}
+                    {/* ? `ID: ${certificates[0].employeeId}`  */}
+                    {/* : 'No identifier available' */}
+              {/* }</p> */}
+              {/* <p><strong>Possible solutions:</strong></p> */}
+              {/* <ul style={{ marginLeft: '20px', marginTop: '10px' }}> */}
+                {/* <li>Check if your backend has a progress/learning API endpoint</li> */}
+                {/* <li>Verify the endpoint path matches your backend routes</li> */}
+                {/* <li>Ensure the employee email/ID in certificates matches the progress data</li> */}
+                {/* <li>Check browser Network tab for exact API responses</li> */}
+                {/* <li>Verify authentication token has required permissions</li> */}
+              {/* </ul> */}
+            {/* </div> */}
           </div>
         )}
       </div>

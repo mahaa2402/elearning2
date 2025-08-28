@@ -40,6 +40,8 @@ const Quiz = () => {
         return 'Welding';
       } else if (moduleIdUpper.startsWith('CNC')) {
         return 'CNC';
+      }else if (moduleIdUpper.startsWith('VRU')) {
+        return 'VRU';
       }
     }
     
@@ -70,10 +72,10 @@ const Quiz = () => {
   const isFinalModule = (mo_id, courseName) => {
     if (!mo_id || !courseName) return false;
     
-    console.log('🔍 Checking if final module:', { mo_id, courseName });
+    console.log('Checking if final module:', { mo_id, courseName });
     
     const moduleNumber = parseInt(mo_id.match(/\d+/)?.[0] || '0');
-    console.log('📊 Extracted module number:', moduleNumber);
+    console.log('Extracted module number:', moduleNumber);
     
     // Define final module numbers for each course
     const finalModules = {
@@ -86,7 +88,7 @@ const Quiz = () => {
     };
     
     const isFinal = moduleNumber === finalModules[courseName];
-    console.log('🎯 Is final module?', isFinal, 'Expected:', finalModules[courseName]);
+    console.log('Is final module?', isFinal, 'Expected:', finalModules[courseName]);
     
     return isFinal;
   };
@@ -103,6 +105,7 @@ const Quiz = () => {
   const [isCourseCompleted, setIsCourseCompleted] = useState(false); // New state for course completion
   const [quizAccessAllowed, setQuizAccessAllowed] = useState(false);
   const [accessChecking, setAccessChecking] = useState(true);
+  const [quizCompleted, setQuizCompleted] = useState(false); // New state to track if quiz is completed
 
   // Check if user is allowed to take this quiz
   const checkQuizAccess = async () => {
@@ -146,7 +149,11 @@ const Quiz = () => {
           'CNC01': 'CNC01',
           'CNC02': 'CNC02',
           'CNC03': 'CNC03',
-          'CNC04': 'CNC04'
+          'CNC04': 'CNC04',
+          'VRU01': 'VRU01',
+          'VRU02':'VRU02',
+          'VRU03':'VRU03',
+          'VRU04':'VRU04'
         };
         return moduleMapping[lessonKey] || lessonKey;
       };
@@ -161,16 +168,24 @@ const Quiz = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 Quiz access check - unlock status:', data.lessonUnlockStatus);
+        console.log('Quiz access check - unlock status:', data.lessonUnlockStatus);
         const lessonStatus = data.lessonUnlockStatus.find(lesson => lesson.lessonId === moduleId);
-        console.log('🔍 Quiz access check - lesson status for', moduleId, ':', lessonStatus);
+        console.log('Quiz access check - lesson status for', moduleId, ':', lessonStatus);
         
         if (lessonStatus) {
-          console.log('🔍 Quiz access check - canTakeQuiz:', lessonStatus.canTakeQuiz);
-          setQuizAccessAllowed(lessonStatus.canTakeQuiz);
+          // Check if quiz is already completed - if so, lock it
+          if (lessonStatus.isCompleted) {
+            console.log('Quiz access check - quiz already completed, locking access');
+            setQuizAccessAllowed(false);
+            setQuizCompleted(true);
+          } else {
+            console.log('Quiz access check - canTakeQuiz:', lessonStatus.canTakeQuiz);
+            setQuizAccessAllowed(lessonStatus.canTakeQuiz);
+            setQuizCompleted(false);
+          }
         } else {
           // If lesson not found in progress, allow access (fallback)
-          console.log('🔍 Quiz access check - lesson not found, allowing access');
+          console.log('Quiz access check - lesson not found, allowing access');
           setQuizAccessAllowed(true);
         }
       } else {
@@ -195,9 +210,9 @@ const Quiz = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("🔍 Fetching questions for attempt:", attempt);
-      console.log("🔍 Fetching questions...");
-      console.log("📝 Request details:", {
+      console.log("Fetching questions for attempt:", attempt);
+      console.log("Fetching questions...");
+      console.log("Request details:", {
         method: "POST",
         url: "http://localhost:5000/api/courses/questions",
         courseId: courseId,
@@ -213,7 +228,7 @@ const Quiz = () => {
         attemptNumber: attempt
       };
       
-      console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
+      console.log("Request body:", JSON.stringify(requestBody, null, 2));
       
       const response = await fetch("http://localhost:5000/api/courses/questions", {
         method: "POST",
@@ -241,9 +256,46 @@ const Quiz = () => {
             correctAnswerId = String.fromCharCode(97 + idx); // 'a', 'b', ...
           }
         }
+
+        // Handle image URL logic - IMPROVED VERSION
+        let imageUrl = null;
+        
+        console.log('==========================================');
+        console.log('Processing question:', question.question);
+        console.log('Raw imageUrl from backend:', question.imageUrl);
+        console.log('Type of imageUrl:', typeof question.imageUrl);
+        console.log('imageUrl === null:', question.imageUrl === null);
+        console.log('imageUrl === "null":', question.imageUrl === 'null');
+        console.log('imageUrl field exists?', question.hasOwnProperty('imageUrl'));
+        
+        if (question.hasOwnProperty('imageUrl')) {
+          // imageUrl field exists in the question
+          if (question.imageUrl === null || question.imageUrl === 'null') {
+            // Explicitly null - no image
+            imageUrl = null;
+            console.log('ImageUrl is null - NO IMAGE will be shown');
+          } else if (typeof question.imageUrl === 'string' && question.imageUrl.trim().length > 0) {
+            // Valid string URL
+            imageUrl = question.imageUrl.trim();
+            console.log('Using provided imageUrl:', imageUrl);
+          } else {
+            // Empty string or other falsy value - use default
+            imageUrl = "https://northfleet.in/wp-content/uploads/2024/10/Types-of-Cars-in-India.webp";
+            console.log('Using default imageUrl (empty/invalid value)');
+          }
+        } else {
+          // No imageUrl field - use default
+          imageUrl = "https://northfleet.in/wp-content/uploads/2024/10/Types-of-Cars-in-India.webp";
+          console.log('Using default imageUrl (field not found)');
+        }
+        
+        console.log('Final imageUrl decision:', imageUrl);
+        console.log('==========================================');
+
         return {
           id: question._id || question.id || index + 1,
           question: question.question,
+          imageUrl: imageUrl, // Add image URL to question object
           options: question.options.map((option, optIndex) => ({
             id: String.fromCharCode(97 + optIndex),
             text: option
@@ -322,8 +374,8 @@ const Quiz = () => {
       const completedAt = new Date().toISOString();
 
       try {
-        console.log('🎯 User passed quiz, submitting progress...');
-        console.log('📝 Progress data:', { userEmail, courseName, m_id, passed });
+        console.log('User passed quiz, submitting progress...');
+        console.log('Progress data:', { userEmail, courseName, m_id, passed });
         
         // Submit quiz progress to backend
         const response = await fetch("http://localhost:5000/api/progress/submit-quiz", {
@@ -342,20 +394,20 @@ const Quiz = () => {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Quiz progress saved successfully:', result);
+          console.log('Quiz progress saved successfully:', result);
           
           // Update local storage for backward compatibility
           let currentLevel = parseInt(localStorage.getItem("levelCleared")) || 0;
           const updatedLevel = currentLevel + 1;
           localStorage.setItem("levelCleared", updatedLevel);
           
-          console.log('📊 Updated level cleared to:', updatedLevel);
+          console.log('Updated level cleared to:', updatedLevel);
 
           // Check if course is completed - ALWAYS check, not just for final module
           const currentCourseName = getCourseName();
           
           try {
-            console.log('🎓 Checking if course is completed after this module...');
+            console.log('Checking if course is completed after this module...');
             const certificateResponse = await fetch("http://localhost:5000/api/certificate/check-course-completion", {
               method: "POST",
               headers: {
@@ -370,10 +422,10 @@ const Quiz = () => {
 
             if (certificateResponse.ok) {
               const certificateResult = await certificateResponse.json();
-              console.log('🎓 Course completion check result:', certificateResult);
+              console.log('Course completion check result:', certificateResult);
 
               if (certificateResult.success && certificateResult.isCompleted) {
-                console.log('🎉 Course completed! Certificate generated:', certificateResult.certificate);
+                console.log('Course completed! Certificate generated:', certificateResult.certificate);
                 // Set course completion state
                 setIsCourseCompleted(true);
                 // Store certificate info in localStorage for the certificate page
@@ -381,27 +433,27 @@ const Quiz = () => {
                 localStorage.setItem('courseCompleted', 'true');
                 localStorage.setItem('completedCourseName', currentCourseName);
               } else {
-                console.log('📚 Course still in progress:', certificateResult.message);
+                console.log('Course still in progress:', certificateResult.message);
                 setIsCourseCompleted(false);
                 localStorage.setItem('courseCompleted', 'false');
               }
             } else {
-              console.error('❌ Failed to check course completion:', await certificateResponse.json());
+              console.error('Failed to check course completion:', await certificateResponse.json());
               setIsCourseCompleted(false);
             }
           } catch (certError) {
-            console.error('❌ Error checking course completion:', certError);
+            console.error('Error checking course completion:', certError);
             setIsCourseCompleted(false);
           }
         } else {
           const errorData = await response.json();
-          console.error('❌ Failed to save quiz progress:', errorData);
+          console.error('Failed to save quiz progress:', errorData);
         }
       } catch (error) {
-        console.error('❌ Error saving quiz progress:', error);
+        console.error('Error saving quiz progress:', error);
       }
     } else {
-      console.log('⚠️ User did not pass quiz, skipping progress update');
+      console.log('User did not pass quiz, skipping progress update');
     }
   };
 
@@ -453,15 +505,34 @@ const Quiz = () => {
   if (!quizAccessAllowed) {
     return (
       <div className="quiz-container">
+        {/* Show course title even when quiz is locked */}
+        <div className="quiz-title-left">
+          <h2>{getCourseName()} QUIZ</h2>
+        </div>
+        
         <div className="quiz-card">
-          <div className="quiz-access-denied">
-            <h2>🔒 Quiz Locked</h2>
-            <p>You need to complete the previous lesson before taking this quiz.</p>
+          <div className={`quiz-access-denied ${quizCompleted ? 'completed' : ''}`}>
+            {quizCompleted ? (
+              <div className="completion-icon">
+                <span>✅</span>
+              </div>
+            ) : (
+              <div className="lock-icon">
+                <span>🔒</span>
+              </div>
+            )}
+            <h2>{quizCompleted ? 'Quiz Already Completed' : 'Quiz Locked'}</h2>
+            <p>
+              {quizCompleted 
+                ? 'You have already completed this quiz successfully. You can only view the lesson content.'
+                : 'You need to complete the previous lesson before taking this quiz.'
+              }
+            </p>
             <button 
               onClick={() => navigate(`/course/${courseId}/lesson/${mo_id}`)}
               className="nav-button primary"
             >
-              Go to Lesson
+              {quizCompleted ? 'View Lesson' : 'Go to Lesson'}
             </button>
           </div>
         </div>
@@ -539,6 +610,22 @@ const Quiz = () => {
                 <div className="question-review-title">
                   Question {index + 1}: {question.question}
                 </div>
+                {/* Show image in results if it exists */}
+                {question.imageUrl && (
+                  <div className="question-review-image">
+                    <img 
+                      src={question.imageUrl} 
+                      alt={`Question ${index + 1} visual`}
+                      style={{
+                        maxWidth: '300px',
+                        maxHeight: '200px',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        margin: '10px 0'
+                      }}
+                    />
+                  </div>
+                )}
                 <div className="question-review-content">
                   <div className="question-review-answer">
                     Your answer: {selectedAnswers[question.id]
@@ -550,7 +637,7 @@ const Quiz = () => {
                       ? 'correct'
                       : 'incorrect'
                   }`}>
-                    {selectedAnswers[question.id] === question.correctAnswer ? '✓' : '✗'}
+                    {selectedAnswers[question.id] === question.correctAnswer ? 'correct' : 'incorrect'}
                   </div>
                 </div>
               </div>
@@ -578,7 +665,7 @@ const Quiz = () => {
               {(isCourseCompleted || localStorage.getItem('courseCompleted') === 'true') ? (
                 <div className="certificate-section">
                   <div className="completion-message">
-                    🎉 Congratulations! You have completed the entire {getCourseName()} course!
+                    Congratulations! You have completed the entire {getCourseName()} course!
                   </div>
                   <button
                     onClick={() => {
@@ -601,7 +688,7 @@ const Quiz = () => {
                       gap: '8px'
                     }}
                   >
-                    🏆 View Your Certificate
+                    View Your Certificate
                   </button>
                 </div>
               ) : (
@@ -619,7 +706,7 @@ const Quiz = () => {
                     </button>
                   ) : (
                     <div className="completion-message">
-                      🎊 Module completed! Check your dashboard for next steps.
+                      Module completed! Check your dashboard for next steps.
                     </div>
                   );
                 })()
@@ -637,11 +724,16 @@ const Quiz = () => {
 
   return (
     <div className="quiz-container">
+      {/* ✅ Title moved outside quiz-card */}
+      <div className="quiz-title-left">
+        <h2>{getCourseName()} QUIZ</h2>
+      </div>
+
       <div className="quiz-card">
         <div className="quiz-header">
-          <h2 className="quiz-title">{getCourseName()} Quiz</h2>
-          <h2 className="question-number">QUESTION {currentQuestion + 1}</h2>
-          <h1 className="question-text">{currentQuestionData.question}</h1>
+          <h1 className="question-text">
+            {currentQuestion + 1} {currentQuestionData.question}
+          </h1>
           {attemptNumber > 1 && (
             <div className="attempt-indicator">
               Retake Attempt {attemptNumber} - Different Questions
@@ -649,6 +741,18 @@ const Quiz = () => {
           )}
         </div>
 
+        {/* Question image */}
+        {currentQuestionData.imageUrl && (
+          <div className="question-image-container">
+            <img
+              src={currentQuestionData.imageUrl}
+              alt={`Question ${currentQuestion + 1} visual`}
+              className="question-image"
+            />
+          </div>
+        )}
+
+        {/* Options */}
         <div className="options-container">
           {currentQuestionData.options.map((option) => (
             <button
@@ -663,6 +767,7 @@ const Quiz = () => {
           ))}
         </div>
 
+        {/* Navigation */}
         <div className="navigation-container">
           <button
             onClick={handlePrevious}
