@@ -307,7 +307,7 @@ const TaskModulePage = () => {
       </header>
 
       <main className="module-content">
-        {/* Left Side - Video */}
+        {/* Left Side - Video Content */}
         <div className="content-area">
           <section className="video-section">
             <div className="section-header">
@@ -341,7 +341,7 @@ const TaskModulePage = () => {
               ) : (
                 <div className="video-placeholder">
                   <Play className="play-icon-large" />
-                  <p>No video available</p>
+                  <p>No video available for this module</p>
                 </div>
               )}
               <div className="video-info">
@@ -362,7 +362,7 @@ const TaskModulePage = () => {
           </section>
         </div>
 
-        {/* Right Side - Modules Sidebar */}
+        {/* Right Side - Course Modules Sidebar */}
         <aside className="modules-sidebar">
           <h2 className="sidebar-title">Course Modules</h2>
           
@@ -478,31 +478,33 @@ const TaskModulePage = () => {
               })
             )}
 
-            {/* Debug info section */}
-            <div style={{ padding: '10px', borderTop: '1px solid #eee', marginTop: '10px', fontSize: '12px', color: '#999' }}>
-              <details>
-                <summary>Debug Info</summary>
-                <div style={{ marginTop: '5px' }}>
-                  <div><strong>Course Name:</strong> {courseDetails?.name || 'N/A'}</div>
-                  <div><strong>Modules Count:</strong> {courseDetails?.modules?.length || 0}</div>
-                  <div><strong>Selected Module:</strong> {selectedModule?.title || 'None'}</div>
-                </div>
-                <pre style={{ fontSize: '10px', overflow: 'auto', maxHeight: '200px', background: '#f8f8f8', padding: '5px', borderRadius: '3px', marginTop: '5px' }}>
-                  {JSON.stringify({
-                    courseId,
-                    moduleId,
-                    courseName: courseDetails?.name,
-                    modulesTitles: courseDetails?.modules?.map(m => m.title) || [],
-                    hasVideo: courseDetails?.modules?.map(m => !!m.video) || [],
-                    hasQuiz: courseDetails?.modules?.map(m => !!(m.quiz && m.quiz.questions)) || [],
-                    modulesCount: courseDetails?.modules?.length || 0,
-                    selectedModuleTitle: selectedModule?.title || 'None',
-                    stateAvailable: !!state,
-                    courseDetailsAvailable: !!courseDetails
-                  }, null, 2)}
-                </pre>
-              </details>
-            </div>
+            {/* Debug info section - only show in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <div style={{ padding: '10px', borderTop: '1px solid #eee', marginTop: '10px', fontSize: '12px', color: '#999' }}>
+                <details>
+                  <summary>Debug Info</summary>
+                  <div style={{ marginTop: '5px' }}>
+                    <div><strong>Course Name:</strong> {courseDetails?.name || 'N/A'}</div>
+                    <div><strong>Modules Count:</strong> {courseDetails?.modules?.length || 0}</div>
+                    <div><strong>Selected Module:</strong> {selectedModule?.title || 'None'}</div>
+                  </div>
+                  <pre style={{ fontSize: '10px', overflow: 'auto', maxHeight: '200px', background: '#f8f8f8', padding: '5px', borderRadius: '3px', marginTop: '5px' }}>
+                    {JSON.stringify({
+                      courseId,
+                      moduleId,
+                      courseName: courseDetails?.name,
+                      modulesTitles: courseDetails?.modules?.map(m => m.title) || [],
+                      hasVideo: courseDetails?.modules?.map(m => !!m.video) || [],
+                      hasQuiz: courseDetails?.modules?.map(m => !!(m.quiz && m.quiz.questions)) || [],
+                      modulesCount: courseDetails?.modules?.length || 0,
+                      selectedModuleTitle: selectedModule?.title || 'None',
+                      stateAvailable: !!state,
+                      courseDetailsAvailable: !!courseDetails
+                    }, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            )}
           </div>
         </aside>
       </main>
