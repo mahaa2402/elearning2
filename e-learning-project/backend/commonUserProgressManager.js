@@ -18,6 +18,8 @@ const commonUserProgressSchema = new mongoose.Schema({
   employeeDepartment: { type: String, required: true },
   // Dynamic course progress fields will be added based on common courses in DB
   courseProgress: { type: Map, of: Number, default: {} },
+  // Quiz timestamps for tracking retake cooldowns
+  quizTimestamp: { type: Map, of: Date, default: {} },
   updatedAt: { type: Date, default: Date.now }
 });
 
@@ -55,8 +57,10 @@ async function initializeEmployeeProgress(employeeEmail) {
     
     // Create course progress object with all courses initialized to 0
     const courseProgress = {};
+    const quizTimestamp = {};
     commonCourses.forEach(course => {
       courseProgress[course.title] = 0;
+      quizTimestamp[course.title] = null; // No timestamp means quiz is available
     });
 
     // Create new progress document
@@ -65,7 +69,8 @@ async function initializeEmployeeProgress(employeeEmail) {
       employeeName: employee.name,
       employeeEmail: employee.email,
       employeeDepartment: employee.department,
-      courseProgress: courseProgress
+      courseProgress: courseProgress,
+      quizTimestamp: quizTimestamp
     });
 
     await newProgress.save();
@@ -170,8 +175,10 @@ async function migrateExistingDocuments() {
 
     // Create courseProgress object
     const courseProgress = {};
+    const quizTimestamp = {};
     commonCourses.forEach(course => {
       courseProgress[course.title] = 0;
+      quizTimestamp[course.title] = null; // No timestamp means quiz is available
     });
 
     // Update each document
@@ -179,7 +186,7 @@ async function migrateExistingDocuments() {
     for (const doc of existingDocs) {
       const result = await CommonUserProgress.findByIdAndUpdate(
         doc._id,
-        { $set: { courseProgress: courseProgress } },
+        { $set: { courseProgress: courseProgress, quizTimestamp: quizTimestamp } },
         { new: true }
       );
       
@@ -207,13 +214,15 @@ async function resetAllProgress() {
     
     const commonCourses = await CommonCourse.find({}, 'title');
     const courseProgress = {};
+    const quizTimestamp = {};
     commonCourses.forEach(course => {
       courseProgress[course.title] = 0;
+      quizTimestamp[course.title] = null; // Reset timestamps to allow quiz access
     });
 
     const result = await CommonUserProgress.updateMany(
       {},
-      { $set: { courseProgress: courseProgress } }
+      { $set: { courseProgress: courseProgress, quizTimestamp: quizTimestamp } }
     );
 
     console.log(`✅ Reset progress for ${result.modifiedCount} documents`);
@@ -399,6 +408,112 @@ async function getCourseCompletionStatus(employeeEmail, courseName) {
 }
 
 // ============================================================================
+// QUIZ TIMESTAMP FUNCTIONS
+// ============================================================================
+
+/**
+ * Check if employee can take quiz for a specific course
+ * Returns true if quiz is available (timestamp is 0 or 24 hours have passed)
+ */
+async function canTakeQuiz(employeeEmail, courseName) {
+  try {
+    console.log(`🔍 Checking quiz availability for ${employeeEmail} - ${courseName}`);
+    
+    const progress = await CommonUserProgress.findOne({ employeeEmail });
+    if (!progress) {
+      console.log(`📊 No progress found for ${employeeEmail}, initializing...`);
+      await initializeEmployeeProgress(employeeEmail);
+      return true; // New employee can take quiz
+    }
+    
+    const quizTime = progress.quizTimestamp.get(courseName);
+    if (!quizTime) {
+      console.log(`✅ No timestamp found for ${courseName}, quiz available`);
+      return true; // No timestamp means quiz is available
+    }
+    
+    const now = new Date();
+    const timeDiff = now.getTime() - quizTime.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    
+    console.log(`⏰ Quiz timestamp for ${courseName}: ${quizTime}`);
+    console.log(`⏰ Current time: ${now}`);
+    console.log(`⏰ Hours since last attempt: ${hoursDiff.toFixed(2)}`);
+    
+    if (hoursDiff >= 24) {
+      console.log(`✅ 24 hours have passed, quiz available`);
+      return true;
+    } else {
+      console.log(`⏳ Quiz not available yet, ${(24 - hoursDiff).toFixed(2)} hours remaining`);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error checking quiz availability:', error);
+    return false; // Default to blocking on error
+  }
+}
+
+/**
+ * Update quiz timestamp after a failed attempt
+ * This sets the timestamp to current time, blocking quiz for 24 hours
+ */
+async function updateQuizTimestamp(employeeEmail, courseName) {
+  try {
+    console.log(`⏰ Updating quiz timestamp for ${employeeEmail} - ${courseName}`);
+    
+    const result = await CommonUserProgress.findOneAndUpdate(
+      { employeeEmail: employeeEmail },
+      { $set: { [`quizTimestamp.${courseName}`]: new Date() } },
+      { new: true, upsert: true }
+    );
+    
+    console.log(`✅ Quiz timestamp updated for ${employeeEmail} - ${courseName}`);
+    return result;
+  } catch (error) {
+    console.error('❌ Error updating quiz timestamp:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get remaining time until quiz is available
+ * Returns time in hours and minutes
+ */
+async function getQuizCooldownRemaining(employeeEmail, courseName) {
+  try {
+    const progress = await CommonUserProgress.findOne({ employeeEmail });
+    if (!progress) {
+      return { hours: 0, minutes: 0, available: true };
+    }
+    
+    const quizTime = progress.quizTimestamp.get(courseName);
+    if (!quizTime) {
+      return { hours: 0, minutes: 0, available: true };
+    }
+    
+    const now = new Date();
+    const timeDiff = now.getTime() - quizTime.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    
+    if (hoursDiff >= 24) {
+      return { hours: 0, minutes: 0, available: true };
+    }
+    
+    const remainingHours = Math.floor(24 - hoursDiff);
+    const remainingMinutes = Math.floor((24 - hoursDiff - remainingHours) * 60);
+    
+    return {
+      hours: remainingHours,
+      minutes: remainingMinutes,
+      available: false
+    };
+  } catch (error) {
+    console.error('❌ Error getting quiz cooldown:', error);
+    return { hours: 0, minutes: 0, available: true };
+  }
+}
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -415,6 +530,11 @@ module.exports = {
   // Course completion functions
   isCourseCompleted,
   getCourseCompletionStatus,
+  
+  // Quiz timestamp functions
+  canTakeQuiz,
+  updateQuizTimestamp,
+  getQuizCooldownRemaining,
   
   // Migration utilities
   migrateExistingDocuments,

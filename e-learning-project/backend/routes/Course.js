@@ -165,4 +165,88 @@ router.get('/debug-quizzes', async (req, res) => {
   }
 });
 
+// Quiz timestamp validation endpoints
+router.post('/check-quiz-availability', async (req, res) => {
+  const { courseName } = req.body;
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication token required' });
+  }
+  
+  if (!courseName) {
+    return res.status(400).json({ error: 'courseName is required' });
+  }
+  
+  try {
+    // Verify token and get employee email
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const employeeEmail = decoded.email;
+    
+    console.log(`🔍 Checking quiz availability for ${employeeEmail} - ${courseName}`);
+    
+    const { canTakeQuiz, getQuizCooldownRemaining } = require('../commonUserProgressManager');
+    
+    const canTake = await canTakeQuiz(employeeEmail, courseName);
+    const cooldown = await getQuizCooldownRemaining(employeeEmail, courseName);
+    
+    console.log(`📊 Quiz availability result:`, { canTake, cooldown });
+    
+    res.json({
+      canTake,
+      cooldown,
+      message: canTake ? 'Quiz is available' : 'Quiz is not available yet'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error checking quiz availability:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+router.post('/update-quiz-timestamp', async (req, res) => {
+  const { courseName } = req.body;
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication token required' });
+  }
+  
+  if (!courseName) {
+    return res.status(400).json({ error: 'courseName is required' });
+  }
+  
+  try {
+    // Verify token and get employee email
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const employeeEmail = decoded.email;
+    
+    console.log(`⏰ Updating quiz timestamp for ${employeeEmail} - ${courseName}`);
+    
+    const { updateQuizTimestamp } = require('../commonUserProgressManager');
+    
+    const result = await updateQuizTimestamp(employeeEmail, courseName);
+    
+    console.log(`✅ Quiz timestamp updated successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Quiz timestamp updated',
+      timestamp: new Date()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error updating quiz timestamp:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
 module.exports = router;

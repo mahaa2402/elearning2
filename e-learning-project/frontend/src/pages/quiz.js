@@ -106,6 +106,58 @@ const Quiz = () => {
   const [quizAccessAllowed, setQuizAccessAllowed] = useState(false);
   const [accessChecking, setAccessChecking] = useState(true);
   const [quizCompleted, setQuizCompleted] = useState(false); // New state to track if quiz is completed
+  const [quizBlocked, setQuizBlocked] = useState(false);
+  const [cooldownTime, setCooldownTime] = useState({ hours: 0, minutes: 0 });
+
+  // Check quiz availability when component mounts
+  useEffect(() => {
+    const checkQuizAvailability = async () => {
+      try {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        if (!token) {
+          setError('Authentication token not found');
+          setAccessChecking(false);
+          return;
+        }
+
+        const courseName = getCourseName();
+        console.log('🔍 Checking quiz availability for course:', courseName);
+
+        const response = await fetch('http://localhost:5000/api/courses/check-quiz-availability', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ courseName })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('📊 Quiz availability result:', result);
+
+          if (!result.canTake) {
+            setQuizBlocked(true);
+            setCooldownTime(result.cooldown);
+            setError(`Quiz is not available yet. You can retry in ${result.cooldown.hours}h ${result.cooldown.minutes}m`);
+            setAccessChecking(false);
+            return;
+          }
+        } else {
+          console.log('⚠️ Quiz availability check failed, proceeding with normal access check');
+        }
+
+        // Continue with normal access checking
+        checkQuizAccess();
+      } catch (error) {
+        console.error('❌ Error checking quiz availability:', error);
+        // Continue with normal access checking even if timestamp check fails
+        checkQuizAccess();
+      }
+    };
+
+    checkQuizAvailability();
+  }, [courseId, mo_id]);
 
   // Check if user is allowed to take this quiz
   const checkQuizAccess = async () => {
@@ -199,11 +251,6 @@ const Quiz = () => {
       setAccessChecking(false);
     }
   };
-
-  // Check quiz access on component mount
-  useEffect(() => {
-    checkQuizAccess();
-  }, [courseId, mo_id]);
 
   // Fetch questions from backend
   const fetchQuestions = async (attempt) => {
@@ -365,8 +412,9 @@ const Quiz = () => {
       setHasFailedOnce(true);
     }
 
-    // Only submit progress if the user passed the quiz
+    // Handle quiz result
     if (passed) {
+      // User passed the quiz - submit progress
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const userEmail = email;
       const courseName = getCourseName();
@@ -453,7 +501,32 @@ const Quiz = () => {
         console.error('Error saving quiz progress:', error);
       }
     } else {
-      console.log('User did not pass quiz, skipping progress update');
+      // User failed the quiz - update timestamp to block retake for 24 hours
+      console.log('User did not pass quiz, updating timestamp to block retake');
+      try {
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+        if (token) {
+          const courseName = getCourseName();
+          console.log('⏰ Quiz failed, updating timestamp for course:', courseName);
+          
+          const response = await fetch('http://localhost:5000/api/courses/update-quiz-timestamp', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ courseName })
+          });
+          
+          if (response.ok) {
+            console.log('✅ Quiz timestamp updated after failed attempt');
+          } else {
+            console.error('❌ Failed to update quiz timestamp');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error updating quiz timestamp:', error);
+      }
     }
   };
 
@@ -495,6 +568,54 @@ const Quiz = () => {
           <div className="quiz-header">
             <h2>Checking Quiz Access...</h2>
             <p>Please wait while we verify your progress.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Quiz blocked by timestamp state
+  if (quizBlocked) {
+    return (
+      <div className="quiz-container">
+        <div className="quiz-title-left">
+          <h2>{getCourseName()} QUIZ</h2>
+        </div>
+        
+        <div className="quiz-card">
+          <div className="quiz-blocked-state">
+            <div className="blocked-icon">
+              <span>⏰</span>
+            </div>
+            <h2>Quiz Not Available</h2>
+            <p>You cannot take this quiz right now because you already failed it recently.</p>
+            <p>Please wait for the cooldown period to expire before retrying.</p>
+            
+            <div className="cooldown-info">
+              <h3>Time Remaining:</h3>
+              <div className="cooldown-timer">
+                <span className="time-unit">
+                  <span className="time-value">{cooldownTime.hours}</span>
+                  <span className="time-label">Hours</span>
+                </span>
+                <span className="time-separator">:</span>
+                <span className="time-unit">
+                  <span className="time-value">{cooldownTime.minutes.toString().padStart(2, '0')}</span>
+                  <span className="time-label">Minutes</span>
+                </span>
+              </div>
+            </div>
+            
+            <div className="blocked-note">
+              <p><strong>Note:</strong> This 24-hour cooldown is designed to ensure proper learning and prevent rapid retakes.</p>
+            </div>
+            
+            <button 
+              onClick={() => navigate(`/course/${courseId}/lesson/${mo_id}`)}
+              className="nav-button primary"
+            >
+              Back to Lesson
+            </button>
           </div>
         </div>
       </div>

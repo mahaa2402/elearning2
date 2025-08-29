@@ -17,16 +17,69 @@ const AssignedQuizPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingProgress, setUpdatingProgress] = useState(false);
+  const [quizBlocked, setQuizBlocked] = useState(false);
+  const [cooldownTime, setCooldownTime] = useState({ hours: 0, minutes: 0 });
 
+  // Check quiz availability when component mounts
   useEffect(() => {
-    if (courseDetails && selectedModule && selectedModule.quiz) {
-      setLoading(false);
-      setCurrentQuiz(selectedModule.quiz);
-    } else {
-      setError('No quiz data available for this module.');
-      setLoading(false);
-    }
+    const checkQuizAvailability = async () => {
+      if (courseDetails && selectedModule) {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            setError('Authentication token not found');
+            setLoading(false);
+            return;
+          }
+
+          const courseName = courseDetails?.name || courseDetails?.title;
+          console.log('🔍 Checking quiz availability for course:', courseName);
+
+          const response = await fetch('http://localhost:5000/api/courses/check-quiz-availability', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ courseName })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('📊 Quiz availability result:', result);
+
+            if (!result.canTake) {
+              setQuizBlocked(true);
+              setCooldownTime(result.cooldown);
+              setError(`Quiz is not available yet. You can retry in ${result.cooldown.hours}h ${result.cooldown.minutes}m`);
+            } else {
+              // Quiz is available, proceed to load quiz
+              if (selectedModule.quiz) {
+                setCurrentQuiz(selectedModule.quiz);
+              } else {
+                setError('No quiz data available for this module.');
+              }
+            }
+          } else {
+            const errorData = await response.json();
+            setError(`Failed to check quiz availability: ${errorData.error}`);
+          }
+        } catch (error) {
+          console.error('❌ Error checking quiz availability:', error);
+          setError('Failed to check quiz availability. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setError('No course or module data available.');
+        setLoading(false);
+      }
+    };
+
+    checkQuizAvailability();
   }, [courseDetails, selectedModule]);
+
+  // Old useEffect removed - quiz availability is now checked in the new useEffect above
 
   const handleAnswerSelect = (answer) => {
     setQuizAnswers(prev => ({
@@ -131,6 +184,32 @@ const AssignedQuizPage = () => {
         alert('⚠ Network error. Progress may not have been updated.');
       } finally {
         setUpdatingProgress(false);
+      }
+    } else {
+      // Quiz failed - update timestamp to block retake for 24 hours
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const courseName = courseDetails?.name || courseDetails?.title;
+          console.log('⏰ Quiz failed, updating timestamp for course:', courseName);
+          
+          const response = await fetch('http://localhost:5000/api/courses/update-quiz-timestamp', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ courseName })
+          });
+          
+          if (response.ok) {
+            console.log('✅ Quiz timestamp updated after failed attempt');
+          } else {
+            console.error('❌ Failed to update quiz timestamp');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error updating quiz timestamp:', error);
       }
     }
     
@@ -292,6 +371,66 @@ const AssignedQuizPage = () => {
     );
   }
 
+  if (quizBlocked) {
+    return (
+      <div className="aqp-assigned-quiz-page">
+        <header className="aqp-quiz-header">
+          <button className="aqp-back-btn" onClick={() => navigate(-1)}>
+            <ChevronLeft className="aqp-back-icon" />
+            Back to Module
+          </button>
+          <div className="aqp-quiz-title-section">
+            <h1 className="aqp-quiz-title">{selectedModule?.title || 'Module'} - Quiz Blocked</h1>
+          </div>
+        </header>
+
+        <main className="aqp-quiz-content">
+          <div className="aqp-quiz-results-container">
+            <div className="aqp-results-card">
+              <div className="aqp-results-header">
+                <AlertCircle className="aqp-results-icon" style={{ color: '#dc3545' }} />
+                <h2 className="aqp-results-title">Quiz Not Available</h2>
+              </div>
+              
+              <div className="aqp-blocked-message">
+                <p>⏰ You cannot take this quiz right now because you already failed it recently.</p>
+                <p>Please wait for the cooldown period to expire before retrying.</p>
+                
+                <div className="aqp-cooldown-info">
+                  <h3>Time Remaining:</h3>
+                  <div className="aqp-cooldown-timer">
+                    <span className="aqp-time-unit">
+                      <span className="aqp-time-value">{cooldownTime.hours}</span>
+                      <span className="aqp-time-label">Hours</span>
+                    </span>
+                    <span className="aqp-time-separator">:</span>
+                    <span className="aqp-time-unit">
+                      <span className="aqp-time-value">{cooldownTime.minutes.toString().padStart(2, '0')}</span>
+                      <span className="aqp-time-label">Minutes</span>
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="aqp-blocked-note">
+                  <p><strong>Note:</strong> This 24-hour cooldown is designed to ensure proper learning and prevent rapid retakes.</p>
+                </div>
+              </div>
+
+              <div className="aqp-action-buttons">
+                <button 
+                  className="aqp-btn aqp-btn-back-to-module"
+                  onClick={() => navigate(-1)}
+                >
+                  Back to Module
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (quizSubmitted) {
     return (
       <div className="aqp-assigned-quiz-page">
@@ -394,14 +533,20 @@ const AssignedQuizPage = () => {
                   <button 
                     className="aqp-btn aqp-btn-retry"
                     onClick={() => {
-                      setQuizAnswers({});
-                      setQuizSubmitted(false);
-                      setCurrentQuestionIndex(0);
+                      // Navigate back to quiz to trigger availability check
+                      navigate('/assignedquizpage', {
+                        state: {
+                          courseDetails: courseDetails,
+                          selectedModule: selectedModule,
+                          taskDetails: taskDetails,
+                          courseId: courseDetails?.name,
+                          moduleId: courseDetails?.modules?.findIndex(m => m.title === selectedModule.title) || 0
+                        }
+                      });
                     }}
-                    disabled={true}
-                    title="You can only retry after 24 hours"
+                    title="Click to check if quiz is available for retry"
                   >
-                    Retry Quiz (24h cooldown)
+                    Retry Quiz
                   </button>
                 )}
                 <button 

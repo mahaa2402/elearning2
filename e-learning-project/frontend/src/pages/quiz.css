@@ -523,3 +523,97 @@ body {
   margin-bottom: 20px; /* spacing from container */
   text-align: center;
 }
+
+/* Quiz Blocked State */
+.quiz-blocked-state {
+  text-align: center;
+  padding: 2rem;
+}
+
+.blocked-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.quiz-blocked-state h2 {
+  color: #dc3545;
+  margin-bottom: 1rem;
+  font-size: 1.8rem;
+}
+
+.quiz-blocked-state p {
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.cooldown-info {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.cooldown-info h3 {
+  color: #333;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.cooldown-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.time-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #667eea;
+  min-width: 80px;
+}
+
+.time-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #667eea;
+  line-height: 1;
+}
+
+.time-label {
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.time-separator {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0.5rem;
+}
+
+.blocked-note {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+}
+
+.blocked-note p {
+  color: #856404;
+  font-size: 0.9rem;
+  margin: 0;
+}

@@ -490,7 +490,41 @@ const TaskModulePage = () => {
                     <div 
                       key={`quiz-${module._id || index}`} 
                       className={`module-item quiz-item ${selectedModule?.title === module.title ? 'active' : ''}`}
-                      onClick={() => {
+                      onClick={async () => {
+                        // Check quiz availability before navigating
+                        try {
+                          const token = localStorage.getItem('token');
+                          if (token) {
+                            const courseName = courseDetails?.name || courseDetails?.title;
+                            console.log('🔍 Checking quiz availability before navigation for course:', courseName);
+                            
+                            const response = await fetch('http://localhost:5000/api/courses/check-quiz-availability', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: JSON.stringify({ courseName })
+                            });
+                            
+                            if (response.ok) {
+                              const result = await response.json();
+                              console.log('📊 Quiz availability check result:', result);
+                              
+                              if (!result.canTake) {
+                                // Quiz is blocked, show popup
+                                const hours = result.cooldown.hours;
+                                const minutes = result.cooldown.minutes;
+                                alert(`⏰ You cannot take this quiz right now!\n\nYou already failed it recently and need to wait ${hours}h ${minutes}m before retrying.\n\nThis 24-hour cooldown ensures proper learning and prevents rapid retakes.`);
+                                return;
+                              }
+                            }
+                          }
+                        } catch (error) {
+                          console.error('❌ Error checking quiz availability:', error);
+                          // Continue with navigation even if check fails
+                        }
+                        
                         // Navigate to quiz page
                         navigate('/assignedquizpage', {
                           state: {

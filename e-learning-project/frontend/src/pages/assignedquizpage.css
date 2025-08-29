@@ -581,3 +581,86 @@
     flex-direction: column;
   }
 }
+
+/* Blocked Quiz State */
+.aqp-blocked-message {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.aqp-blocked-message p {
+  font-size: 1.1rem;
+  color: #666;
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.aqp-cooldown-info {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.aqp-cooldown-info h3 {
+  color: #333;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.aqp-cooldown-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.aqp-time-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #667eea;
+  min-width: 80px;
+}
+
+.aqp-time-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #667eea;
+  line-height: 1;
+}
+
+.aqp-time-label {
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.aqp-time-separator {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0.5rem;
+}
+
+.aqp-blocked-note {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+}
+
+.aqp-blocked-note p {
+  color: #856404;
+  font-size: 0.9rem;
+  margin: 0;
+}
