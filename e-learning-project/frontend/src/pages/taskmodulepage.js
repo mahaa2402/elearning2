@@ -289,20 +289,31 @@ const TaskModulePage = () => {
   return (
     <div className="task-module-page">
       <header className="module-header">
-        <button className="back-btn" onClick={() => navigate(-1)}>
-          <ChevronLeft className="back-icon" />
-          Back to Task Details
-        </button>
-        <div className="module-title-section">
-          <h1 className="module-title">
-            {selectedModule?.title || 'Module'}
-            {selectedModule && isModuleCompleted(selectedModule) && (
-              <Check className="title-tick" style={{ color: '#22c55e', marginLeft: '10px' }} />
-            )}
-          </h1>
-          {selectedModule?.description && (
-            <p className="module-description">{selectedModule.description}</p>
-          )}
+        <div className="header-left">
+          <button className="back-btn" onClick={() => navigate(-1)}>
+            <ChevronLeft className="back-icon" />
+            Back to Task Details
+          </button>
+          <div className="module-title-section">
+            <h1 className="module-title">
+              Learn about {courseDetails?.name || 'Course'}
+            </h1>
+            <p className="module-description">
+              {courseDetails?.description || 'Introduction to Course Content'}
+            </p>
+          </div>
+        </div>
+        <div className="header-right">
+          <button className="refresh-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M3 21v-5h5"/>
+            </svg>
+            Refresh
+          </button>
+          <div className="time-info">1 hour</div>
         </div>
       </header>
 
@@ -364,8 +375,6 @@ const TaskModulePage = () => {
 
         {/* Right Side - Course Modules Sidebar */}
         <aside className="modules-sidebar">
-          <h2 className="sidebar-title">Course Modules</h2>
-          
           {/* Success Message */}
           {successMessage && (
             <div style={{ 
@@ -381,131 +390,170 @@ const TaskModulePage = () => {
             </div>
           )}
           
-          <div className="modules-list">
-            {!courseDetails ? (
-              <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                <div>❌ No course details available</div>
-                <div>Make sure to pass courseDetails in navigation state</div>
-                <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>
-                  Current courseId: <strong>{courseId || 'None'}</strong>
+          {/* Courses Section */}
+          <div className="sidebar-section">
+            <h2 className="sidebar-title">Courses</h2>
+            <div className="modules-list">
+              {!courseDetails ? (
+                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
+                  <div>❌ No course details available</div>
+                  <div>Make sure to pass courseDetails in navigation state</div>
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>
+                    Current courseId: <strong>{courseId || 'None'}</strong>
+                  </div>
+                  {courseId && (
+                    <button 
+                      onClick={fetchCourseDetails}
+                      disabled={fetchingCourse}
+                      style={{ 
+                        marginTop: '10px', 
+                        padding: '8px 16px', 
+                        backgroundColor: fetchingCourse ? '#ccc' : '#007bff', 
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: '4px', 
+                        cursor: fetchingCourse ? 'not-allowed' : 'pointer' 
+                      }}
+                    >
+                      {fetchingCourse ? '⏳ Fetching...' : '🔄 Fetch Course Details'}
+                    </button>
+                  )}
                 </div>
-                {courseId && (
-                  <button 
-                    onClick={fetchCourseDetails}
-                    disabled={fetchingCourse}
-                    style={{ 
-                      marginTop: '10px', 
-                      padding: '8px 16px', 
-                      backgroundColor: fetchingCourse ? '#ccc' : '#007bff', 
-                      color: 'white', 
-                      border: 'none', 
-                      borderRadius: '4px', 
-                      cursor: fetchingCourse ? 'not-allowed' : 'pointer' 
-                    }}
-                  >
-                    {fetchingCourse ? '⏳ Fetching...' : '🔄 Fetch Course Details'}
-                  </button>
-                )}
-              </div>
-            ) : !courseDetails.modules ? (
-              <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                <div>⚠️ Course details found but no modules property</div>
-                <div>Available properties: {Object.keys(courseDetails).join(', ')}</div>
-              </div>
-            ) : courseDetails.modules.length === 0 ? (
-              <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                📭 No modules in the course
-                <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>
-                  Course: <strong>{courseDetails.name}</strong> | 
-                  Modules: <strong>{courseDetails.modules?.length || 0}</strong>
+              ) : !courseDetails.modules ? (
+                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
+                  <div>⚠️ Course details found but no modules property</div>
+                  <div>Available properties: {Object.keys(courseDetails).join(', ')}</div>
                 </div>
-              </div>
-            ) : (
-              // Render modules based on your DB structure
-              courseDetails.modules.map((module, index) => {
-                console.log(`Rendering module ${index}:`, module);
-                return (
-                  <div 
-                    key={module._id || index} 
-                    className={`module-item ${selectedModule?.title === module.title ? 'active' : ''}`}
-                    onClick={() => handleModuleSelect(module)}
-                  >
-                    <div className="module-item-header">
-                      <h3 className="module-item-title">
-                        {module.title || `Module ${index + 1}`}
-                      </h3>
-                      <div className="module-status">
-                        {isModuleCompleted(module) ? (
-                          <CheckCircle className="status-icon completed" />
-                        ) : (
-                          <Circle className="status-icon pending" />
-                        )}
+              ) : courseDetails.modules.length === 0 ? (
+                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
+                  📭 No modules in the course
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>
+                    Course: <strong>{courseDetails.name}</strong> | 
+                    Modules: <strong>{courseDetails.modules?.length || 0}</strong>
+                  </div>
+                </div>
+              ) : (
+                // Render course modules
+                courseDetails.modules.map((module, index) => {
+                  console.log(`Rendering module ${index}:`, module);
+                  return (
+                    <div 
+                      key={module._id || index} 
+                      className={`module-item course-item ${selectedModule?.title === module.title ? 'active' : ''}`}
+                      onClick={() => handleModuleSelect(module)}
+                    >
+                      <div className="module-item-header">
+                        <div className="module-info">
+                          <h3 className="module-item-title">
+                            Lesson {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
+                          </h3>
+                          <div className="module-duration">30 mins</div>
+                        </div>
+                        <div className="module-status">
+                          {isModuleCompleted(module) ? (
+                            <CheckCircle className="status-icon completed" />
+                          ) : selectedModule?.title === module.title ? (
+                            <Circle className="status-icon active" />
+                          ) : (
+                            <div className="status-icon locked">🔒</div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="module-content-indicators">
-                      {/* Video indicator - based on your DB structure */}
-                      {module.video && (
-                        <span className="content-indicator video">
-                          <Play className="indicator-icon" />
-                          Video
-                        </span>
-                      )}
-                      
-                      {/* Quiz indicator - based on your DB structure */}
-                      {module.quiz && module.quiz.questions && module.quiz.questions.length > 0 && (
-                        <span 
-                          className="content-indicator quiz clickable"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate('/assignedquizpage', {
-                              state: {
-                                courseDetails: courseDetails,
-                                selectedModule: module,
-                                taskDetails: taskDetails,
-                                courseId: courseId,
-                                moduleId: courseDetails?.modules?.findIndex(m => m._id === module._id || m.title === module.title) || 0
-                              }
-                            });
-                          }}
-                        >
-                          <FileText className="indicator-icon" />
-                          Quiz ({module.quiz.questions.length} questions)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-
-            {/* Debug info section - only show in development */}
-            {process.env.NODE_ENV === 'development' && (
-              <div style={{ padding: '10px', borderTop: '1px solid #eee', marginTop: '10px', fontSize: '12px', color: '#999' }}>
-                <details>
-                  <summary>Debug Info</summary>
-                  <div style={{ marginTop: '5px' }}>
-                    <div><strong>Course Name:</strong> {courseDetails?.name || 'N/A'}</div>
-                    <div><strong>Modules Count:</strong> {courseDetails?.modules?.length || 0}</div>
-                    <div><strong>Selected Module:</strong> {selectedModule?.title || 'None'}</div>
-                  </div>
-                  <pre style={{ fontSize: '10px', overflow: 'auto', maxHeight: '200px', background: '#f8f8f8', padding: '5px', borderRadius: '3px', marginTop: '5px' }}>
-                    {JSON.stringify({
-                      courseId,
-                      moduleId,
-                      courseName: courseDetails?.name,
-                      modulesTitles: courseDetails?.modules?.map(m => m.title) || [],
-                      hasVideo: courseDetails?.modules?.map(m => !!m.video) || [],
-                      hasQuiz: courseDetails?.modules?.map(m => !!(m.quiz && m.quiz.questions)) || [],
-                      modulesCount: courseDetails?.modules?.length || 0,
-                      selectedModuleTitle: selectedModule?.title || 'None',
-                      stateAvailable: !!state,
-                      courseDetailsAvailable: !!courseDetails
-                    }, null, 2)}
-                  </pre>
-                </details>
-              </div>
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
+
+          {/* Practice Quiz Section */}
+          <div className="sidebar-section">
+            <h2 className="sidebar-title">Practice Quiz</h2>
+            <div className="modules-list">
+              {!courseDetails ? (
+                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
+                  <div>❌ No course details available</div>
+                </div>
+              ) : !courseDetails.modules ? (
+                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
+                  <div>⚠️ No modules available</div>
+                </div>
+              ) : courseDetails.modules.length === 0 ? (
+                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
+                  📭 No quizzes available
+                </div>
+              ) : (
+                // Render quiz modules
+                courseDetails.modules.map((module, index) => {
+                  console.log(`Rendering quiz ${index}:`, module);
+                  return (
+                    <div 
+                      key={`quiz-${module._id || index}`} 
+                      className={`module-item quiz-item ${selectedModule?.title === module.title ? 'active' : ''}`}
+                      onClick={() => {
+                        // Navigate to quiz page
+                        navigate('/assignedquizpage', {
+                          state: {
+                            courseDetails: courseDetails,
+                            selectedModule: module,
+                            taskDetails: taskDetails,
+                            courseId: courseId,
+                            moduleId: courseDetails?.modules?.findIndex(m => m._id === module._id || m.title === module.title) || 0
+                          }
+                        });
+                      }}
+                    >
+                      <div className="module-item-header">
+                        <div className="module-info">
+                          <h3 className="module-item-title">
+                            Quiz {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
+                          </h3>
+                          <div className="module-duration">30 mins</div>
+                        </div>
+                        <div className="module-status">
+                          {isModuleCompleted(module) ? (
+                            <CheckCircle className="status-icon completed" />
+                          ) : selectedModule?.title === module.title ? (
+                            <Circle className="status-icon active" />
+                          ) : (
+                            <div className="status-icon locked">🔒</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Debug info section - only show in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div style={{ padding: '10px', borderTop: '1px solid #eee', marginTop: '10px', fontSize: '12px', color: '#999' }}>
+              <details>
+                <summary>Debug Info</summary>
+                <div style={{ marginTop: '5px' }}>
+                  <div><strong>Course Name:</strong> {courseDetails?.name || 'N/A'}</div>
+                  <div><strong>Modules Count:</strong> {courseDetails?.modules?.length || 0}</div>
+                  <div><strong>Selected Module:</strong> {selectedModule?.title || 'None'}</div>
+                </div>
+                <pre style={{ fontSize: '10px', overflow: 'auto', maxHeight: '200px', background: '#f8f8f8', padding: '5px', borderRadius: '3px', marginTop: '5px' }}>
+                  {JSON.stringify({
+                    courseId,
+                    moduleId,
+                    courseName: courseDetails?.name,
+                    modulesTitles: courseDetails?.modules?.map(m => m.title) || [],
+                    hasVideo: courseDetails?.modules?.map(m => !!m.video) || [],
+                    hasQuiz: courseDetails?.modules?.map(m => !!(m.quiz && m.quiz.questions)) || [],
+                    modulesCount: courseDetails?.modules?.length || 0,
+                    selectedModuleTitle: selectedModule?.title || 'None',
+                    stateAvailable: !!state,
+                    courseDetailsAvailable: !!courseDetails
+                  }, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
         </aside>
       </main>
     </div>
