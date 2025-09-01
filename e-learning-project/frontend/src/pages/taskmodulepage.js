@@ -1,5 +1,5 @@
 // frontend/src/pages/taskmodulepage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AlertCircle, ChevronLeft, Play, FileText, CheckCircle, Circle, Check } from 'lucide-react';
@@ -18,10 +18,12 @@ const TaskModulePage = () => {
   const [progress, setProgress] = useState(0);
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [completedModules, setCompletedModules] = useState(new Set());
+  const [quizCompletionStatus, setQuizCompletionStatus] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fetchingCourse, setFetchingCourse] = useState(false);
+  const [fetchingQuizStatus, setFetchingQuizStatus] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
 
   // 🔍 Fetch course details from backend if not available in state
@@ -156,6 +158,60 @@ const TaskModulePage = () => {
     }
   };
 
+  // 🔍 Fetch quiz completion status for the current course
+  const fetchQuizCompletionStatus = useCallback(async () => {
+    try {
+      if (!courseDetails?.name) return;
+      
+      setFetchingQuizStatus(true);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('No authentication token found, skipping quiz completion status fetch');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/assigned-course-progress/quiz-completion-status/${encodeURIComponent(courseDetails.name)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('📊 Quiz completion status:', result);
+        
+        // Create a map of module completion status
+        const completionMap = {};
+        if (result.moduleCompletionStatus) {
+          result.moduleCompletionStatus.forEach(module => {
+            completionMap[module.moduleTitle] = {
+              isCompleted: module.isCompleted,
+              completedAt: module.completedAt
+            };
+          });
+        }
+        
+        setQuizCompletionStatus(completionMap);
+      } else {
+        console.log('Failed to fetch quiz completion status');
+      }
+    } catch (error) {
+      console.error('Error fetching quiz completion status:', error);
+      // Don't set error for this, just log it
+    } finally {
+      setFetchingQuizStatus(false);
+    }
+  }, [courseDetails?.name]);
+
+  // Refresh quiz completion status when course details change
+  useEffect(() => {
+    if (courseDetails?.name && courseDetails.modules && courseDetails.modules.length > 0) {
+      fetchQuizCompletionStatus();
+    }
+  }, [courseDetails, fetchQuizCompletionStatus]);
+
   useEffect(() => {
     const initializePage = async () => {
       try {
@@ -212,6 +268,12 @@ const TaskModulePage = () => {
           await fetchVideo();
         }
 
+        // Fetch quiz completion status after course details are loaded
+        if (extractedCourseDetails?.name) {
+          // Don't call fetchQuizCompletionStatus here as it depends on courseDetails state
+          // It will be called by the useEffect when courseDetails changes
+        }
+
       } catch (err) {
         console.error('Error initializing page:', err);
         setError(err.message);
@@ -261,8 +323,46 @@ const TaskModulePage = () => {
         setVideoCompleted(true);
         if (selectedModule?.title) {
           setCompletedModules(prev => new Set([...prev, selectedModule.title]));
+          
+          // Save lesson completion to backend
+          saveLessonProgress(selectedModule.title);
         }
       }
+    }
+  };
+
+  // Save lesson completion to backend
+  const saveLessonProgress = async (moduleTitle) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token || !courseDetails?.name) return;
+
+      console.log('💾 Saving lesson completion:', { courseName: courseDetails.name, moduleTitle });
+
+      // Save to UserProgress collection
+      const response = await fetch('http://localhost:5000/api/progress/submit-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userEmail: localStorage.getItem('userEmail') || 'user@example.com', // You might need to get this from context or props
+          courseName: courseDetails.name,
+          completedModules: [{ m_id: moduleTitle, completedAt: new Date().toISOString() }],
+          lastAccessedModule: moduleTitle
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ Lesson completion saved successfully');
+        // Refresh quiz completion status to show green tick marks
+        setTimeout(() => fetchQuizCompletionStatus(), 1000);
+      } else {
+        console.log('⚠️ Failed to save lesson completion');
+      }
+    } catch (error) {
+      console.error('❌ Error saving lesson completion:', error);
     }
   };
 
@@ -277,6 +377,8 @@ const TaskModulePage = () => {
       state: { courseDetails, selectedModule: module, taskDetails },
     });
   };
+
+
 
   const getModuleProgress = (module) => {
     if (!module) return 0;
@@ -304,14 +406,18 @@ const TaskModulePage = () => {
           </div>
         </div>
         <div className="header-right">
-          <button className="refresh-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-              <path d="M21 3v5h-5"/>
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-              <path d="M3 21v-5h5"/>
-            </svg>
-            Refresh
+          <button className="refresh-btn" onClick={fetchQuizCompletionStatus} disabled={fetchingQuizStatus}>
+            {fetchingQuizStatus ? (
+              <div className="loading-spinner-small"></div>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M3 21v-5h5"/>
+              </svg>
+            )}
+            {fetchingQuizStatus ? 'Refreshing...' : 'Refresh Progress'}
           </button>
           <div className="time-info">1 hour</div>
         </div>
@@ -439,7 +545,7 @@ const TaskModulePage = () => {
                   return (
                     <div 
                       key={module._id || index} 
-                      className={`module-item course-item ${selectedModule?.title === module.title ? 'active' : ''}`}
+                      className={`module-item course-item ${selectedModule?.title === module.title ? 'active' : ''} ${quizCompletionStatus[module.title]?.isCompleted ? 'completed' : ''}`}
                       onClick={() => handleModuleSelect(module)}
                     >
                       <div className="module-item-header">
@@ -447,11 +553,17 @@ const TaskModulePage = () => {
                           <h3 className="module-item-title">
                             Lesson {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
                           </h3>
-                          <div className="module-duration">30 mins</div>
+                          <div className="module-duration">
+                            {quizCompletionStatus[module.title]?.isCompleted ? (
+                              <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ Completed</span>
+                            ) : (
+                              '30 mins'
+                            )}
+                          </div>
                         </div>
                         <div className="module-status">
-                          {isModuleCompleted(module) ? (
-                            <CheckCircle className="status-icon completed" />
+                          {quizCompletionStatus[module.title]?.isCompleted ? (
+                            <CheckCircle className="status-icon completed" style={{ color: '#28a745' }} />
                           ) : selectedModule?.title === module.title ? (
                             <Circle className="status-icon active" />
                           ) : (
@@ -489,7 +601,7 @@ const TaskModulePage = () => {
                   return (
                     <div 
                       key={`quiz-${module._id || index}`} 
-                      className={`module-item quiz-item ${selectedModule?.title === module.title ? 'active' : ''}`}
+                      className={`module-item quiz-item ${selectedModule?.title === module.title ? 'active' : ''} ${quizCompletionStatus[module.title]?.isCompleted ? 'completed' : ''}`}
                       onClick={async () => {
                         // Check quiz availability before navigating
                         try {
@@ -542,11 +654,17 @@ const TaskModulePage = () => {
                           <h3 className="module-item-title">
                             Quiz {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
                           </h3>
-                          <div className="module-duration">30 mins</div>
+                          <div className="module-duration">
+                            {quizCompletionStatus[module.title]?.isCompleted ? (
+                              <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ Completed</span>
+                            ) : (
+                              '30 mins'
+                            )}
+                          </div>
                         </div>
                         <div className="module-status">
-                          {isModuleCompleted(module) ? (
-                            <CheckCircle className="status-icon completed" />
+                          {quizCompletionStatus[module.title]?.isCompleted ? (
+                            <CheckCircle className="status-icon completed" style={{ color: '#28a745' }} />
                           ) : selectedModule?.title === module.title ? (
                             <Circle className="status-icon active" />
                           ) : (
@@ -560,6 +678,42 @@ const TaskModulePage = () => {
               )}
             </div>
           </div>
+
+          {/* Course Progress Summary */}
+          {courseDetails && Object.keys(quizCompletionStatus).length > 0 && (
+            <div className="sidebar-section">
+              <h2 className="sidebar-title">Course Progress</h2>
+              <div className="progress-summary">
+                <div className="progress-stats">
+                  <div className="progress-stat">
+                    <span className="progress-label">Completed:</span>
+                    <span className="progress-value completed">
+                      {Object.values(quizCompletionStatus).filter(status => status.isCompleted).length}
+                    </span>
+                  </div>
+                  <div className="progress-stat">
+                    <span className="progress-label">Total:</span>
+                    <span className="progress-value total">
+                      {courseDetails.modules.length}
+                    </span>
+                  </div>
+                </div>
+                <div className="progress-bar-container">
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill" 
+                      style={{ 
+                        width: `${(Object.values(quizCompletionStatus).filter(status => status.isCompleted).length / courseDetails.modules.length) * 100}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <span className="progress-percentage">
+                    {Math.round((Object.values(quizCompletionStatus).filter(status => status.isCompleted).length / courseDetails.modules.length) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Debug info section - only show in development */}
           {process.env.NODE_ENV === 'development' && (

@@ -98,6 +98,75 @@ router.get('/all-employees-progress', authenticateToken, async (req, res) => {
     }
 
     const allProgress = await getAllEmployeesAssignedCourseProgress();
+
+// Get quiz completion status for a specific course
+router.get('/quiz-completion-status/:courseName', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'employee') {
+      return res.status(403).json({ error: 'Employee access required' });
+    }
+
+    const { courseName } = req.params;
+    const employeeEmail = req.user.email;
+
+    // Get the course details to know total modules
+    const Course = require('../models/Course');
+    const course = await Course.findOne({ name: courseName });
+    
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    // Get user progress for this course
+    const UserProgress = require('../models/Userprogress');
+    const userProgress = await UserProgress.findOne({ userEmail: employeeEmail, courseName });
+    
+    // Get assigned course progress
+    const AssignedCourseUserProgress = require('../models/AssignedCourseUserProgress');
+    const assignedProgress = await AssignedCourseUserProgress.findOne({ employeeEmail });
+    
+    let completedModules = [];
+    let isAssigned = false;
+    
+    if (userProgress) {
+      completedModules = userProgress.completedModules || [];
+    }
+    
+    if (assignedProgress) {
+      const courseAssignment = assignedProgress.courseAssignments.find(
+        assignment => assignment.courseName === courseName
+      );
+      isAssigned = !!courseAssignment;
+    }
+
+    // Create completion status for each module
+    const moduleCompletionStatus = course.modules.map((module, index) => {
+      const moduleId = module.title || `Module ${index + 1}`;
+      const isCompleted = completedModules.some(mod => mod.m_id === moduleId);
+      
+      return {
+        moduleIndex: index,
+        moduleId: moduleId,
+        moduleTitle: module.title || `Module ${index + 1}`,
+        isCompleted: isCompleted,
+        completedAt: isCompleted ? completedModules.find(mod => mod.m_id === moduleId)?.completedAt : null
+      };
+    });
+
+    res.json({
+      success: true,
+      courseName: courseName,
+      totalModules: course.modules.length,
+      completedModules: completedModules.length,
+      moduleCompletionStatus: moduleCompletionStatus,
+      isAssigned: isAssigned
+    });
+
+  } catch (error) {
+    console.error('Error getting quiz completion status:', error);
+    res.status(500).json({ error: 'Failed to get quiz completion status', message: error.message });
+  }
+});
     res.json({ success: true, progress: allProgress });
   } catch (error) {
     console.error('Error getting all employees assigned course progress:', error);
