@@ -19,6 +19,8 @@ const TaskModulePage = () => {
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [completedModules, setCompletedModules] = useState(new Set());
   const [quizCompletionStatus, setQuizCompletionStatus] = useState({});
+  const [unlockStatus, setUnlockStatus] = useState([]); // For sequential unlocking
+  const [fetchingUnlockStatus, setFetchingUnlockStatus] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -193,9 +195,12 @@ const TaskModulePage = () => {
           });
         }
         
+        console.log('📊 Quiz completion map:', completionMap);
         setQuizCompletionStatus(completionMap);
       } else {
         console.log('Failed to fetch quiz completion status');
+        const errorText = await response.text();
+        console.log('Quiz completion error response:', errorText);
       }
     } catch (error) {
       console.error('Error fetching quiz completion status:', error);
@@ -205,12 +210,105 @@ const TaskModulePage = () => {
     }
   }, [courseDetails?.name]);
 
+  // 🔓 Fetch unlock status for sequential access control
+  const fetchUnlockStatus = useCallback(async () => {
+    try {
+      if (!courseDetails?.name) return;
+      
+      setFetchingUnlockStatus(true);
+      
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      const userEmail = localStorage.getItem('employeeEmail') || localStorage.getItem('userEmail');
+      
+      if (!token || !userEmail) {
+        console.log('No token or email found, using default unlock status');
+        setUnlockStatus([]);
+        setFetchingUnlockStatus(false);
+        return;
+      }
+
+      const response = await fetch(
+        `http://localhost:5000/api/progress/get-with-unlocking?userEmail=${userEmail}&courseName=${courseDetails.name}&courseId=${courseId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🔓 Full unlock status response:', data);
+        console.log('🔓 Unlock status received:', data.lessonUnlockStatus);
+        
+        if (Array.isArray(data.lessonUnlockStatus)) {
+          console.log('📊 Setting unlock status with', data.lessonUnlockStatus.length, 'items');
+          data.lessonUnlockStatus.forEach((status, index) => {
+            console.log(`📋 Status ${index}:`, status);
+          });
+          setUnlockStatus(data.lessonUnlockStatus);
+        } else {
+          console.warn("Unexpected lessonUnlockStatus format:", data.lessonUnlockStatus);
+          setUnlockStatus([]);
+        }
+      } else {
+        console.log('Failed to fetch unlock status, using default');
+        const errorText = await response.text();
+        console.log('Error response:', errorText);
+        setUnlockStatus([]);
+      }
+    } catch (error) {
+      console.error('Error fetching unlock status:', error);
+      setUnlockStatus([]);
+    } finally {
+      setFetchingUnlockStatus(false);
+    }
+  }, [courseDetails?.name, courseId]);
+
   // Refresh quiz completion status when course details change
   useEffect(() => {
     if (courseDetails?.name && courseDetails.modules && courseDetails.modules.length > 0) {
       fetchQuizCompletionStatus();
+      fetchUnlockStatus();
     }
-  }, [courseDetails, fetchQuizCompletionStatus]);
+  }, [courseDetails, fetchQuizCompletionStatus, fetchUnlockStatus]);
+
+  // Refresh unlock status when page becomes visible (e.g., after quiz completion)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && courseDetails?.name) {
+        console.log("🔄 Page became visible, refreshing unlock status...");
+        fetchUnlockStatus();
+        fetchQuizCompletionStatus();
+      }
+    };
+
+    const handleFocus = () => {
+      if (courseDetails?.name) {
+        console.log("🔄 Window focused, refreshing unlock status...");
+        fetchUnlockStatus();
+        fetchQuizCompletionStatus();
+      }
+    };
+
+    // Also refresh when the page loads (in case user navigated back from quiz)
+    const handlePageLoad = () => {
+      if (courseDetails?.name) {
+        console.log("🔄 Page loaded, refreshing unlock status...");
+        fetchUnlockStatus();
+        fetchQuizCompletionStatus();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handlePageLoad);
+    
+    // Initial refresh when component mounts
+    handlePageLoad();
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageLoad);
+    };
+  }, [courseDetails?.name, fetchUnlockStatus, fetchQuizCompletionStatus]);
 
   useEffect(() => {
     const initializePage = async () => {
@@ -285,6 +383,103 @@ const TaskModulePage = () => {
     initializePage();
   }, [courseId, moduleId, state]);
 
+  // Map lesson keys to backend IDs for unlock status checking
+  const getModuleIdFromLessonKey = (lessonKey) => {
+    console.log('🔑 Mapping lesson key to module ID:', lessonKey);
+    
+    // For assigned courses, the lessonKey is already the correct ID (module title)
+    // For common courses, we might need mapping
+    const moduleMapping = {
+      'ISP01': 'ISP01', 'ISP02': 'ISP02', 'ISP03': 'ISP03', 'ISP04': 'ISP04',
+      'POSH01': 'POSH01', 'POSH02': 'POSH02', 'POSH03': 'POSH03', 'POSH04': 'POSH04',
+      'GDPR01': 'GDPR01', 'GDPR02': 'GDPR02', 'GDPR03': 'GDPR03', 'GDPR04': 'GDPR04',
+      'FACTORY01': 'FACTORY01', 'FACTORY02': 'FACTORY02', 'FACTORY03': 'FACTORY03', 'FACTORY04': 'FACTORY04',
+      'WELDING01': 'WELDING01', 'WELDING02': 'WELDING02', 'WELDING03': 'WELDING03', 'WELDING04': 'WELDING04',
+      'CNC01': 'CNC01', 'CNC02': 'CNC02', 'CNC03': 'CNC03', 'CNC04': 'CNC04',
+      // Add mappings for e-learning modules
+      'e-learn-module1': 'e-learn-module1',
+      'e-learn-mod2': 'e-learn-mod2',
+      'e-learn-module2': 'e-learn-module2'
+    };
+    
+    let mappedId = moduleMapping[lessonKey];
+    if (!mappedId) {
+      const upperKey = lessonKey.toUpperCase();
+      mappedId = moduleMapping[upperKey] || lessonKey; // Default to lessonKey itself for assigned courses
+    }
+    
+    console.log('🔑 Mapped result:', { lessonKey, mappedId });
+    return mappedId;
+  };
+
+  // Check if lesson is completed
+  const isLessonCompleted = (moduleTitle) => {
+    if (!Array.isArray(unlockStatus)) return false;
+    const moduleId = getModuleIdFromLessonKey(moduleTitle);
+    const lessonStatus = unlockStatus.find(status => status.lessonId === moduleId);
+    return lessonStatus ? lessonStatus.isCompleted : false;
+  };
+
+  // Check if quiz is completed (same as lesson completion)
+  const isQuizCompleted = (moduleTitle) => isLessonCompleted(moduleTitle);
+
+  // Check if a lesson/module is unlocked
+  const isLessonUnlocked = (moduleTitle, moduleIndex) => {
+    console.log('🔍 Checking lesson unlock for:', { moduleTitle, moduleIndex, unlockStatus });
+    
+    if (!Array.isArray(unlockStatus) || unlockStatus.length === 0) {
+      console.log('📝 No unlock status, using default - first lesson unlocked:', moduleIndex === 0);
+      return moduleIndex === 0; // default: first lesson unlocked
+    }
+    
+    const moduleId = getModuleIdFromLessonKey(moduleTitle);
+    console.log('🔑 Mapped module title to ID:', { moduleTitle, moduleId });
+    
+    const lessonStatus = unlockStatus.find(status => status.lessonId === moduleId);
+    console.log('📊 Found lesson status:', lessonStatus);
+    
+    const isUnlocked = lessonStatus ? lessonStatus.isUnlocked : false;
+    console.log('✅ Is lesson unlocked result:', isUnlocked);
+    
+    return isUnlocked;
+  };
+
+  // Check if a quiz is available
+  const isQuizAvailable = (moduleTitle, moduleIndex) => {
+    console.log('🔍 Checking quiz availability for:', { moduleTitle, moduleIndex, unlockStatus });
+    
+    if (!Array.isArray(unlockStatus) || unlockStatus.length === 0) {
+      console.log('📝 No unlock status, using default - first quiz available:', moduleIndex === 0);
+      return moduleIndex === 0; // default: first quiz available
+    }
+    
+    const moduleId = getModuleIdFromLessonKey(moduleTitle);
+    console.log('🔑 Mapped module title to ID:', { moduleTitle, moduleId });
+    
+    const lessonStatus = unlockStatus.find(status => status.lessonId === moduleId);
+    console.log('📊 Found lesson status:', lessonStatus);
+
+    // Fallback unlocking rule: if the previous module is completed, unlock this quiz
+    if (moduleIndex > 0 && courseDetails?.modules?.length) {
+      const prevModuleTitle = courseDetails.modules[moduleIndex - 1]?.title;
+      const prevCompleted = prevModuleTitle ? (
+        isLessonCompleted(prevModuleTitle) ||
+        (quizCompletionStatus?.[prevModuleTitle]?.isCompleted === true)
+      ) : false;
+
+      console.log('🔁 Previous module completion check:', { prevModuleTitle, prevCompleted });
+      if (prevCompleted) {
+        console.log('✅ Unlocking quiz via previous completion fallback');
+        return true;
+      }
+    }
+
+    const canTakeQuiz = lessonStatus ? lessonStatus.canTakeQuiz : false;
+    console.log('✅ Can take quiz result:', canTakeQuiz);
+    
+    return canTakeQuiz;
+  };
+
   const isModuleCompleted = (module) => {
     if (!module) return false;
     return completedModules.has(module.title) || module.completed;
@@ -356,8 +551,11 @@ const TaskModulePage = () => {
 
       if (response.ok) {
         console.log('✅ Lesson completion saved successfully');
-        // Refresh quiz completion status to show green tick marks
-        setTimeout(() => fetchQuizCompletionStatus(), 1000);
+        // Refresh quiz completion status and unlock status to show green tick marks
+        setTimeout(() => {
+          fetchQuizCompletionStatus();
+          fetchUnlockStatus();
+        }, 1000);
       } else {
         console.log('⚠️ Failed to save lesson completion');
       }
@@ -366,12 +564,17 @@ const TaskModulePage = () => {
     }
   };
 
-  const handleModuleSelect = (module) => {
+  const handleModuleSelect = (module, moduleIndex) => {
     if (!module) return;
-    setSelectedModule(module);
     
-    // Find the module index for navigation
-    const moduleIndex = courseDetails?.modules?.findIndex(m => m._id === module._id || m.title === module.title) || 0;
+    // Check if module is unlocked
+    const isUnlocked = isLessonUnlocked(module.title, moduleIndex);
+    if (!isUnlocked) {
+      alert('This lesson is locked. Please complete the previous lesson and quiz first.');
+      return;
+    }
+    
+    setSelectedModule(module);
     
     navigate(`/course/${courseId}/module/${moduleIndex}`, {
       state: { courseDetails, selectedModule: module, taskDetails },
@@ -406,8 +609,12 @@ const TaskModulePage = () => {
           </div>
         </div>
         <div className="header-right">
-          <button className="refresh-btn" onClick={fetchQuizCompletionStatus} disabled={fetchingQuizStatus}>
-            {fetchingQuizStatus ? (
+          <button className="refresh-btn" onClick={() => {
+            console.log('🔄 Manual refresh triggered');
+            fetchQuizCompletionStatus();
+            fetchUnlockStatus();
+          }} disabled={fetchingQuizStatus || fetchingUnlockStatus}>
+            {(fetchingQuizStatus || fetchingUnlockStatus) ? (
               <div className="loading-spinner-small"></div>
             ) : (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -417,7 +624,7 @@ const TaskModulePage = () => {
                 <path d="M3 21v-5h5"/>
               </svg>
             )}
-            {fetchingQuizStatus ? 'Refreshing...' : 'Refresh Progress'}
+            {(fetchingQuizStatus || fetchingUnlockStatus) ? 'Refreshing...' : 'Refresh Progress'}
           </button>
           <div className="time-info">1 hour</div>
         </div>
@@ -497,187 +704,102 @@ const TaskModulePage = () => {
           )}
           
           {/* Courses Section */}
-          <div className="sidebar-section">
-            <h2 className="sidebar-title">Courses</h2>
-            <div className="modules-list">
-              {!courseDetails ? (
-                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                  <div>❌ No course details available</div>
-                  <div>Make sure to pass courseDetails in navigation state</div>
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>
-                    Current courseId: <strong>{courseId || 'None'}</strong>
-                  </div>
-                  {courseId && (
-                    <button 
-                      onClick={fetchCourseDetails}
-                      disabled={fetchingCourse}
-                      style={{ 
-                        marginTop: '10px', 
-                        padding: '8px 16px', 
-                        backgroundColor: fetchingCourse ? '#ccc' : '#007bff', 
-                        color: 'white', 
-                        border: 'none', 
-                        borderRadius: '4px', 
-                        cursor: fetchingCourse ? 'not-allowed' : 'pointer' 
-                      }}
-                    >
-                      {fetchingCourse ? '⏳ Fetching...' : '🔄 Fetch Course Details'}
-                    </button>
-                  )}
-                </div>
-              ) : !courseDetails.modules ? (
-                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                  <div>⚠️ Course details found but no modules property</div>
-                  <div>Available properties: {Object.keys(courseDetails).join(', ')}</div>
-                </div>
-              ) : courseDetails.modules.length === 0 ? (
-                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                  📭 No modules in the course
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#888' }}>
-                    Course: <strong>{courseDetails.name}</strong> | 
-                    Modules: <strong>{courseDetails.modules?.length || 0}</strong>
-                  </div>
-                </div>
-              ) : (
-                // Render course modules
-                courseDetails.modules.map((module, index) => {
-                  console.log(`Rendering module ${index}:`, module);
-                  return (
-                    <div 
-                      key={module._id || index} 
-                      className={`module-item course-item ${selectedModule?.title === module.title ? 'active' : ''} ${quizCompletionStatus[module.title]?.isCompleted ? 'completed' : ''}`}
-                      onClick={() => handleModuleSelect(module)}
-                    >
-                      <div className="module-item-header">
-                        <div className="module-info">
-                          <h3 className="module-item-title">
-                            Lesson {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
-                          </h3>
-                          <div className="module-duration">
-                            {quizCompletionStatus[module.title]?.isCompleted ? (
-                              <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ Completed</span>
-                            ) : (
-                              '30 mins'
-                            )}
-                          </div>
-                        </div>
-                        <div className="module-status">
-                          {quizCompletionStatus[module.title]?.isCompleted ? (
-                            <CheckCircle className="status-icon completed" style={{ color: '#28a745' }} />
-                          ) : selectedModule?.title === module.title ? (
-                            <Circle className="status-icon active" />
-                          ) : (
-                            <div className="status-icon locked">🔒</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+          {/* Courses Section */}
+<div className="sidebar-section">
+  <h2 className="sidebar-title">Courses</h2>
+  <div className="modules-list">
+    {courseDetails?.modules?.map((module, index) => {
+      const isUnlocked = isLessonUnlocked(module.title, index);
+      const isCompleted = isLessonCompleted(module.title);
+      const isCurrentModule = selectedModule?.title === module.title;
+
+      return (
+        <button
+          key={module._id || index}
+          className={`lesson-button ${isCurrentModule ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${!isUnlocked ? 'locked' : ''}`}
+          disabled={!isUnlocked}
+          onClick={() => handleModuleSelect(module, index)}
+        >
+          {!isUnlocked && <span className="lock-icon">🔒</span>}
+          {isCompleted && <span className="check-icon">✓</span>}
+          Lesson {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
+          <span className="duration">{isCompleted ? '✓ Completed' : '30 mins'}</span>
+        </button>
+      );
+    })}
+  </div>
+</div>
 
           {/* Practice Quiz Section */}
-          <div className="sidebar-section">
-            <h2 className="sidebar-title">Practice Quiz</h2>
-            <div className="modules-list">
-              {!courseDetails ? (
-                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                  <div>❌ No course details available</div>
-                </div>
-              ) : !courseDetails.modules ? (
-                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                  <div>⚠️ No modules available</div>
-                </div>
-              ) : courseDetails.modules.length === 0 ? (
-                <div style={{ padding: '10px', color: '#666', fontSize: '14px' }}>
-                  📭 No quizzes available
-                </div>
-              ) : (
-                // Render quiz modules
-                courseDetails.modules.map((module, index) => {
-                  console.log(`Rendering quiz ${index}:`, module);
-                  return (
-                    <div 
-                      key={`quiz-${module._id || index}`} 
-                      className={`module-item quiz-item ${selectedModule?.title === module.title ? 'active' : ''} ${quizCompletionStatus[module.title]?.isCompleted ? 'completed' : ''}`}
-                      onClick={async () => {
-                        // Check quiz availability before navigating
-                        try {
-                          const token = localStorage.getItem('token');
-                          if (token) {
-                            const courseName = courseDetails?.name || courseDetails?.title;
-                            console.log('🔍 Checking quiz availability before navigation for course:', courseName);
-                            
-                            const response = await fetch('http://localhost:5000/api/courses/check-quiz-availability', {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                              },
-                              body: JSON.stringify({ courseName })
-                            });
-                            
-                            if (response.ok) {
-                              const result = await response.json();
-                              console.log('📊 Quiz availability check result:', result);
-                              
-                              if (!result.canTake) {
-                                // Quiz is blocked, show popup
-                                const hours = result.cooldown.hours;
-                                const minutes = result.cooldown.minutes;
-                                alert(`⏰ You cannot take this quiz right now!\n\nYou already failed it recently and need to wait ${hours}h ${minutes}m before retrying.\n\nThis 24-hour cooldown ensures proper learning and prevents rapid retakes.`);
-                                return;
-                              }
-                            }
-                          }
-                        } catch (error) {
-                          console.error('❌ Error checking quiz availability:', error);
-                          // Continue with navigation even if check fails
-                        }
-                        
-                        // Navigate to quiz page
-                        navigate('/assignedquizpage', {
-                          state: {
-                            courseDetails: courseDetails,
-                            selectedModule: module,
-                            taskDetails: taskDetails,
-                            courseId: courseId,
-                            moduleId: courseDetails?.modules?.findIndex(m => m._id === module._id || m.title === module.title) || 0
-                          }
-                        });
-                      }}
-                    >
-                      <div className="module-item-header">
-                        <div className="module-info">
-                          <h3 className="module-item-title">
-                            Quiz {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
-                          </h3>
-                          <div className="module-duration">
-                            {quizCompletionStatus[module.title]?.isCompleted ? (
-                              <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ Completed</span>
-                            ) : (
-                              '30 mins'
-                            )}
-                          </div>
-                        </div>
-                        <div className="module-status">
-                          {quizCompletionStatus[module.title]?.isCompleted ? (
-                            <CheckCircle className="status-icon completed" style={{ color: '#28a745' }} />
-                          ) : selectedModule?.title === module.title ? (
-                            <Circle className="status-icon active" />
-                          ) : (
-                            <div className="status-icon locked">🔒</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+        <div className="sidebar-section">
+  <h2 className="sidebar-title">Practice Quiz</h2>
+  <div className="modules-list">
+    {courseDetails?.modules?.map((module, index) => {
+      const isQuizUnlocked = isQuizAvailable(module.title, index);
+      const quizCompleted = isQuizCompleted(module.title);
+      const isCurrentModule = selectedModule?.title === module.title;
+
+      return (
+        <button
+          key={`quiz-${module._id || index}`}
+          className={`quiz-button ${isCurrentModule ? 'active' : ''} ${quizCompleted ? 'completed' : ''} ${!isQuizUnlocked ? 'locked' : ''}`}
+          disabled={!isQuizUnlocked}
+          onClick={async () => {
+            if (quizCompleted) {
+              alert('✅ You already completed this quiz. You can’t access it again.');
+              return;
+            }
+
+            if (!isQuizUnlocked) return;
+
+            try {
+              const token = localStorage.getItem('token');
+              if (token) {
+                const courseName = courseDetails?.name || courseDetails?.title;
+                const response = await fetch('http://localhost:5000/api/courses/check-quiz-availability', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({ courseName })
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  if (!result.canTake) {
+                    const hours = result.cooldown.hours;
+                    const minutes = result.cooldown.minutes;
+                    alert(`⏰ You cannot take this quiz right now!\n\nYou need to wait ${hours}h ${minutes}m before retrying.`);
+                    return;
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('❌ Error checking quiz availability:', error);
+            }
+
+        navigate('/assignedquizpage', {
+  state: {
+    courseDetails,
+    selectedModule: module,
+    taskDetails,
+    courseId,
+    moduleId: index
+  }
+});
+
+
+          }}
+        >
+          {!isQuizUnlocked && <span className="lock-icon">🔒</span>}
+          {quizCompleted && <span className="check-icon">✓</span>}
+          Quiz {String(index + 1).padStart(2, '0')}: {module.title || `Module ${index + 1}`}
+        </button>
+      );
+    })}
+  </div>
+</div>
 
           {/* Course Progress Summary */}
           {courseDetails && Object.keys(quizCompletionStatus).length > 0 && (
@@ -724,6 +846,45 @@ const TaskModulePage = () => {
                   <div><strong>Course Name:</strong> {courseDetails?.name || 'N/A'}</div>
                   <div><strong>Modules Count:</strong> {courseDetails?.modules?.length || 0}</div>
                   <div><strong>Selected Module:</strong> {selectedModule?.title || 'None'}</div>
+                  <div><strong>Unlock Status Count:</strong> {unlockStatus?.length || 0}</div>
+                </div>
+                <div style={{ marginTop: '10px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                  <button 
+                    onClick={() => {
+                      console.log('🔍 Current unlock status:', unlockStatus);
+                      console.log('🔍 Course details:', courseDetails);
+                      console.log('🔍 Quiz completion status:', quizCompletionStatus);
+                    }}
+                    style={{ 
+                      padding: '5px 10px', 
+                      backgroundColor: '#007bff', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '3px', 
+                      cursor: 'pointer',
+                      fontSize: '11px'
+                    }}
+                  >
+                    Log Debug Info
+                  </button>
+                  <button 
+                    onClick={() => {
+                      console.log('🔄 Force refreshing unlock status...');
+                      fetchUnlockStatus();
+                      fetchQuizCompletionStatus();
+                    }}
+                    style={{ 
+                      padding: '5px 10px', 
+                      backgroundColor: '#28a745', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '3px', 
+                      cursor: 'pointer',
+                      fontSize: '11px'
+                    }}
+                  >
+                    Force Refresh
+                  </button>
                 </div>
                 <pre style={{ fontSize: '10px', overflow: 'auto', maxHeight: '200px', background: '#f8f8f8', padding: '5px', borderRadius: '3px', marginTop: '5px' }}>
                   {JSON.stringify({
@@ -731,8 +892,8 @@ const TaskModulePage = () => {
                     moduleId,
                     courseName: courseDetails?.name,
                     modulesTitles: courseDetails?.modules?.map(m => m.title) || [],
-                    hasVideo: courseDetails?.modules?.map(m => !!m.video) || [],
-                    hasQuiz: courseDetails?.modules?.map(m => !!(m.quiz && m.quiz.questions)) || [],
+                    unlockStatus: unlockStatus,
+                    quizCompletionStatus: quizCompletionStatus,
                     modulesCount: courseDetails?.modules?.length || 0,
                     selectedModuleTitle: selectedModule?.title || 'None',
                     stateAvailable: !!state,

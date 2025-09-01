@@ -109,6 +109,8 @@ router.get('/quiz-completion-status/:courseName', authenticateToken, async (req,
     const { courseName } = req.params;
     const employeeEmail = req.user.email;
 
+    console.log('🔍 Getting quiz completion status for:', { courseName, employeeEmail });
+
     // Get the course details to know total modules
     const Course = require('../models/Course');
     const course = await Course.findOne({ name: courseName });
@@ -117,19 +119,23 @@ router.get('/quiz-completion-status/:courseName', authenticateToken, async (req,
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Get user progress for this course
+    console.log('📚 Course found with modules:', course.modules.map(m => m.title));
+
+    // Get user progress for this course (for lesson completion)
     const UserProgress = require('../models/Userprogress');
     const userProgress = await UserProgress.findOne({ userEmail: employeeEmail, courseName });
     
-    // Get assigned course progress
+    // Get assigned course progress (for quiz completion)
     const AssignedCourseUserProgress = require('../models/AssignedCourseUserProgress');
     const assignedProgress = await AssignedCourseUserProgress.findOne({ employeeEmail });
     
     let completedModules = [];
     let isAssigned = false;
+    let assignedProgressCount = 0;
     
     if (userProgress) {
       completedModules = userProgress.completedModules || [];
+      console.log('📊 UserProgress completed modules:', completedModules.map(m => m.m_id));
     }
     
     if (assignedProgress) {
@@ -137,27 +143,47 @@ router.get('/quiz-completion-status/:courseName', authenticateToken, async (req,
         assignment => assignment.courseName === courseName
       );
       isAssigned = !!courseAssignment;
+      
+      // Get the progress count for this course from the Map
+      assignedProgressCount = assignedProgress.assignedCourseProgress.get(courseName) || 0;
+      console.log('📊 AssignedCourseProgress count for', courseName, ':', assignedProgressCount);
     }
 
     // Create completion status for each module
     const moduleCompletionStatus = course.modules.map((module, index) => {
       const moduleId = module.title || `Module ${index + 1}`;
-      const isCompleted = completedModules.some(mod => mod.m_id === moduleId);
+      
+      // Check if lesson is completed (from UserProgress)
+      const isLessonCompleted = completedModules.some(mod => mod.m_id === moduleId);
+      
+      // Check if quiz is completed (from AssignedCourseUserProgress)
+      // If assignedProgressCount is greater than the module index, then this module's quiz is completed
+      const isQuizCompleted = assignedProgressCount > index;
+      
+      // Overall completion (both lesson and quiz completed)
+      const isCompleted = isLessonCompleted && isQuizCompleted;
+      
+      console.log(`📋 Module ${index + 1} (${moduleId}): lesson=${isLessonCompleted}, quiz=${isQuizCompleted}, overall=${isCompleted}`);
       
       return {
         moduleIndex: index,
         moduleId: moduleId,
         moduleTitle: module.title || `Module ${index + 1}`,
         isCompleted: isCompleted,
+        isLessonCompleted: isLessonCompleted,
+        isQuizCompleted: isQuizCompleted,
         completedAt: isCompleted ? completedModules.find(mod => mod.m_id === moduleId)?.completedAt : null
       };
     });
+
+    console.log('📊 Final module completion status:', moduleCompletionStatus);
 
     res.json({
       success: true,
       courseName: courseName,
       totalModules: course.modules.length,
       completedModules: completedModules.length,
+      assignedProgressCount: assignedProgressCount,
       moduleCompletionStatus: moduleCompletionStatus,
       isAssigned: isAssigned
     });

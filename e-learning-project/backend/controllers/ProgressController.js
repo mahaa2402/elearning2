@@ -90,9 +90,14 @@ const getUserProgressWithUnlocking = async (req, res) => {
     // Get user progress
     const progress = await UserProgress.findOne({ userEmail, courseName });
     
-    // Get course data from database
-    const Course = require('../models/common_courses');
-    const course = await Course.findOne({ title: courseName });
+    // Get course data from database - check both common courses and assigned courses
+    const CommonCourse = require('../models/common_courses');
+    const Course = require('../models/Course');
+    
+    let course = await CommonCourse.findOne({ title: courseName });
+    if (!course) {
+      course = await Course.findOne({ name: courseName });
+    }
     
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found' });
@@ -105,31 +110,36 @@ const getUserProgressWithUnlocking = async (req, res) => {
     // Find the highest completed module number
     let highestCompletedIndex = -1;
     lessons.forEach((lesson, index) => {
-      if (completedModuleIds.includes(lesson.m_id)) {
+      // Handle different module structures: common courses use m_id, assigned courses use title
+      const lessonId = lesson.m_id || lesson.title;
+      if (completedModuleIds.includes(lessonId)) {
         highestCompletedIndex = index;
       }
     });
     
     // Determine which lessons and quizzes should be unlocked
     const lessonUnlockStatus = lessons.map((lesson, index) => {
-      const lessonId = lesson.m_id;
+      // Handle different module structures: common courses use m_id, assigned courses use title
+      const lessonId = lesson.m_id || lesson.title;
+      const lessonTitle = lesson.name || lesson.title;
       const isCompleted = completedModuleIds.includes(lessonId);
       
       // Lesson is unlocked if:
       // 1. It's the first lesson (index 0) OR
       // 2. The previous lesson has been completed
-      const isUnlocked = index === 0 || (index > 0 && completedModuleIds.includes(lessons[index - 1].m_id));
+      const prevLessonId = index > 0 ? (lessons[index - 1].m_id || lessons[index - 1].title) : null;
+      const isUnlocked = index === 0 || (index > 0 && completedModuleIds.includes(prevLessonId));
       
       // Quiz is available if:
       // 1. It's the first quiz (index 0) OR
       // 2. The previous quiz has been completed
-      const canTakeQuiz = index === 0 || (index > 0 && completedModuleIds.includes(lessons[index - 1].m_id));
+      const canTakeQuiz = index === 0 || (index > 0 && completedModuleIds.includes(prevLessonId));
       
       console.log(`🔍 Module ${lessonId}: isUnlocked=${isUnlocked}, isCompleted=${isCompleted}, canTakeQuiz=${canTakeQuiz}`);
       
       return {
         lessonId,
-        lessonTitle: lesson.name,
+        lessonTitle,
         isUnlocked,
         isCompleted,
         canTakeQuiz
