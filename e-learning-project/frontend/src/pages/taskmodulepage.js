@@ -427,9 +427,19 @@ const TaskModulePage = () => {
   const isLessonUnlocked = (moduleTitle, moduleIndex) => {
     console.log('🔍 Checking lesson unlock for:', { moduleTitle, moduleIndex, unlockStatus });
     
+    // If unlock status is not available yet, use a safe fallback based on previous module completion
     if (!Array.isArray(unlockStatus) || unlockStatus.length === 0) {
-      console.log('📝 No unlock status, using default - first lesson unlocked:', moduleIndex === 0);
-      return moduleIndex === 0; // default: first lesson unlocked
+      if (moduleIndex === 0) {
+        console.log('📝 No unlock status; unlocking first lesson by default');
+        return true;
+      }
+      const prevModuleTitle = courseDetails?.modules?.[moduleIndex - 1]?.title;
+      const prevCompleted = prevModuleTitle ? (
+        // Prefer explicit quiz completion map when unlockStatus is unavailable
+        quizCompletionStatus?.[prevModuleTitle]?.isCompleted === true
+      ) : false;
+      console.log('📝 No unlock status; fallback via previous completion:', { prevModuleTitle, prevCompleted });
+      return prevCompleted;
     }
     
     const moduleId = getModuleIdFromLessonKey(moduleTitle);
@@ -438,6 +448,18 @@ const TaskModulePage = () => {
     const lessonStatus = unlockStatus.find(status => status.lessonId === moduleId);
     console.log('📊 Found lesson status:', lessonStatus);
     
+    // If we didn't find a status entry for this lesson, also fallback to previous completion
+    if (!lessonStatus) {
+      if (moduleIndex === 0) return true;
+      const prevModuleTitle = courseDetails?.modules?.[moduleIndex - 1]?.title;
+      const prevCompleted = prevModuleTitle ? (
+        isLessonCompleted(prevModuleTitle) ||
+        quizCompletionStatus?.[prevModuleTitle]?.isCompleted === true
+      ) : false;
+      console.log('🔁 Missing lesson status; fallback via previous completion:', { prevModuleTitle, prevCompleted });
+      return prevCompleted;
+    }
+
     const isUnlocked = lessonStatus ? lessonStatus.isUnlocked : false;
     console.log('✅ Is lesson unlocked result:', isUnlocked);
     

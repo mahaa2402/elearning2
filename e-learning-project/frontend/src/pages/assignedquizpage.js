@@ -155,6 +155,35 @@ const AssignedQuizPage = () => {
           const result = await response.json();
           console.log('✅ Module progress updated successfully:', result);
           
+          // Also record completion in general progress to drive unlocking
+          try {
+            const token2 = localStorage.getItem('token');
+            const userEmail = localStorage.getItem('userEmail') || localStorage.getItem('employeeEmail') || undefined;
+            const courseName2 = courseDetails?.name || courseDetails?.title;
+            if (token2 && userEmail && courseName2 && selectedModule?.title) {
+              const submitRes = await fetch('http://localhost:5000/api/progress/submit-quiz', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token2}`
+                },
+                body: JSON.stringify({
+                  userEmail,
+                  courseName: courseName2,
+                  completedModules: [{ m_id: selectedModule.title, completedAt: new Date().toISOString() }],
+                  lastAccessedModule: selectedModule.title
+                })
+              });
+              if (submitRes.ok) {
+                console.log('✅ Synced completion to general progress for unlocking');
+              } else {
+                console.log('⚠️ Failed to sync general progress for unlocking');
+              }
+            }
+          } catch (e) {
+            console.log('⚠️ Error syncing general progress for unlocking:', e);
+          }
+          
           // Check if this was the final module (course completed)
           const courseName = courseDetails?.name || courseDetails?.title;
           const totalModules = courseDetails?.modules?.length || 0;
