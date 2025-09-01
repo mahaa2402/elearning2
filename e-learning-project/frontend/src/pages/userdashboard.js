@@ -19,6 +19,9 @@ const UserDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
+  const [completedTasks, setCompletedTasks] = useState([]);
+  const [uncompletedTasks, setUncompletedTasks] = useState([]);
+  const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,17 +45,18 @@ const UserDashboard = () => {
 
   // Filter tasks based on search query
   useEffect(() => {
+    const allTasks = [...uncompletedTasks, ...completedTasks];
     if (searchQuery.trim() === '') {
-      setFilteredTasks(assignedTasks);
+      setFilteredTasks(allTasks);
     } else {
-      const filtered = assignedTasks.filter(task => 
+      const filtered = allTasks.filter(task => 
         task.taskTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.module.toLowerCase().includes(searchQuery.toLowerCase()) ||
         getAdminNameString(task.assignedBy).toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredTasks(filtered);
     }
-  }, [searchQuery, assignedTasks]);
+  }, [searchQuery, uncompletedTasks, completedTasks]);
 
   // Fetch employee profile information// Updated fetchAdminProfile function with better debugging
 const fetchAdminProfile = async () => {
@@ -172,6 +176,52 @@ const fetchAdminProfile = async () => {
   }
 };
 
+  const fetchCertificates = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found. Please login again.');
+      }
+
+      const response = await fetch('http://localhost:5000/api/certificates/employee-certificates', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        method: 'GET'
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Session expired. Please login again.');
+        }
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch certificates: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      // Handle different response formats
+      let certificatesData = [];
+      if (data.success && Array.isArray(data.certificates)) {
+        certificatesData = data.certificates;
+      } else if (Array.isArray(data)) {
+        certificatesData = data;
+      } else {
+        console.warn('Unexpected certificates data format:', data);
+        certificatesData = [];
+      }
+      
+      setCertificates(certificatesData);
+      return certificatesData;
+      
+    } catch (error) {
+      console.error('Error fetching certificates:', error.message);
+      setCertificates([]);
+      return [];
+    }
+  };
+
   const fetchAssignedTasks = async (isRefresh = false) => {
     try {
       if (isRefresh) {
@@ -234,13 +284,38 @@ const fetchAdminProfile = async () => {
     }
   };
 
+  // Function to separate completed and uncompleted tasks based on certificates
+  const separateTasksByCompletion = (tasks, certificates) => {
+    const completedTaskTitles = new Set(certificates.map(cert => cert.courseTitle));
+    
+    const completed = tasks.filter(task => 
+      completedTaskTitles.has(task.taskTitle) || task.status === 'completed'
+    );
+    
+    const uncompleted = tasks.filter(task => 
+      !completedTaskTitles.has(task.taskTitle) && task.status !== 'completed'
+    );
+    
+    setCompletedTasks(completed);
+    setUncompletedTasks(uncompleted);
+  };
+
   useEffect(() => {
-    // Fetch both admin profile and assigned tasks
+    // Fetch admin profile, assigned tasks, and certificates
     fetchAdminProfile();
+    fetchCertificates();
     fetchAssignedTasks();
   }, []);
 
-  const handleRefresh = () => {
+  // Update task separation when tasks or certificates change
+  useEffect(() => {
+    if (assignedTasks.length > 0) {
+      separateTasksByCompletion(assignedTasks, certificates);
+    }
+  }, [assignedTasks, certificates]);
+
+  const handleRefresh = async () => {
+    await fetchCertificates();
     fetchAssignedTasks(true);
   };
 
@@ -387,12 +462,12 @@ const fetchAdminProfile = async () => {
       <div className="userdash-stat-item">
         <span className="userdash-stat-label">Total Courses Completed</span>
         <span className="userdash-stat-value">
-          {assignedTasks.filter(t => t.status === 'completed').length}
+          {completedTasks.length}
         </span>
       </div>
       <div className="userdash-stat-item">
         <span className="userdash-stat-label">Certificates</span>
-        <span className="userdash-stat-value">-</span>
+        <span className="userdash-stat-value">{certificates.length}</span>
       </div>
       <div className="userdash-stat-item">
         <span className="userdash-stat-label">Quizzes Completed</span>
@@ -401,7 +476,7 @@ const fetchAdminProfile = async () => {
       <div className="userdash-stat-item">
         <span className="userdash-stat-label">Uncompleted Tasks</span>
         <span className="userdash-stat-value">
-          {assignedTasks.filter(t => t.status !== 'completed').length}
+          {uncompletedTasks.length}
         </span>
       </div>
     </div>
@@ -413,12 +488,12 @@ const fetchAdminProfile = async () => {
           <main className="main-content">
             
            
+            {/* Uncompleted Tasks Section */}
             <section className="assigned-courses">
               <div className="section-header">
                 <h2 className="section-title">Your Assigned Tasks</h2>
                 <div className="section-header-actions">
-                  <span className="task-count">{filteredTasks.length} task(s)</span>
-                 
+                  <span className="task-count">{uncompletedTasks.length} uncompleted task(s)</span>
                 </div>
               </div>
 
@@ -433,7 +508,7 @@ const fetchAdminProfile = async () => {
                   <p className="error-text">Error: {error}</p>
                   <button className="btn btn-retry" onClick={handleRefresh}>Retry</button>
                 </div>
-              ) : filteredTasks.length > 0 ? (
+              ) : uncompletedTasks.length > 0 ? (
                 <div className="courses-table-container">
                   <table className="courses-table">
                     <thead className="table-header">
@@ -446,7 +521,7 @@ const fetchAdminProfile = async () => {
                       </tr>
                     </thead>
                     <tbody className="table-body">
-                      {filteredTasks.map((task) => {
+                      {uncompletedTasks.map((task) => {
                         const daysRemaining = getDaysRemaining(task.deadline);
                         const overdue = isOverdue(task.deadline);
                         
@@ -459,18 +534,17 @@ const fetchAdminProfile = async () => {
                                 </div>
                                 <div className="instructor-info">
                                   <div className="instructor-name">{getAdminNameString(task.assignedBy) || 'Admin'}</div>
-                                  {/* Display admin name from assignedBy, only if it's a string */}
-{(() => {
-  const adminNameStr = getAdminNameString(task.assignedBy);
-  if (adminNameStr && typeof adminNameStr === 'string') {
-    return (
-      <div className="admin-name-assignedby">
-        Assigned by: {adminNameStr}
-      </div>
-    );
-  }
-  return null;
-})()}
+                                  {(() => {
+                                    const adminNameStr = getAdminNameString(task.assignedBy);
+                                    if (adminNameStr && typeof adminNameStr === 'string') {
+                                      return (
+                                        <div className="admin-name-assignedby">
+                                          Assigned by: {adminNameStr}
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                   <div className="assigned-date">
                                     <Calendar className="date-icon" />
                                     {new Date(task.createdAt).toLocaleDateString()}
@@ -513,17 +587,12 @@ const fetchAdminProfile = async () => {
                             </td>
                             <td className="table-cell actions">
                               <button 
-                                className={`btn ${task.status === 'completed' ? 'btn-completed' : 'btn-start-learning'}`}
-                                disabled={task.status === 'completed'}
+                                className="btn btn-start-learning"
                                 onClick={() => {
-                                  if (task.status !== 'completed') {
-                                    navigate('/taskdetailpage', { state: { task } });
-                                  }
+                                  navigate('/taskdetailpage', { state: { task } });
                                 }}
                               >
-                                {task.status === 'completed' ? 'Completed' :
-                                 task.status === 'in-progress' ? 'Continue' :
-                                 'START TASK'}
+                                {task.status === 'in-progress' ? 'Continue' : 'START TASK'}
                               </button>
                             </td>
                           </tr>
@@ -535,20 +604,116 @@ const fetchAdminProfile = async () => {
               ) : (
                 <div className="empty-state">
                   <BookOpen className="empty-state-icon" />
-                  <p className="empty-state-text">
-                    {searchQuery ? 'No tasks found matching your search.' : 'No assigned tasks found.'}
-                  </p>
-                  <p className="empty-state-subtext">
-                    {searchQuery ? 'Try adjusting your search terms.' : 'Check back later for new assignments.'}
-                  </p>
-                  {searchQuery && (
-                    <button className="btn btn-clear-search" onClick={() => setSearchQuery('')}>
-                      Clear Search
-                    </button>
-                  )}
+                  <p className="empty-state-text">No uncompleted tasks found.</p>
+                  <p className="empty-state-subtext">Great job! You've completed all your assigned tasks.</p>
                 </div>
               )}
             </section>
+
+            {/* Completed Tasks Section */}
+            {completedTasks.length > 0 && (
+              <section className="assigned-courses completed-tasks">
+                <div className="section-header">
+                  <h2 className="section-title">Completed Tasks</h2>
+                  <div className="section-header-actions">
+                    <span className="task-count">{completedTasks.length} completed task(s)</span>
+                  </div>
+                </div>
+
+                <div className="courses-table-container">
+                  <table className="courses-table">
+                    <thead className="table-header">
+                      <tr>
+                        <th className="table-heading">INSTRUCTOR & ASSIGNED DATE</th>
+                        <th className="table-heading">TASK DETAILS</th>
+                        <th className="table-heading">COMPLETION DATE</th>
+                        <th className="table-heading">STATUS</th>
+                        <th className="table-heading">CERTIFICATE</th>
+                      </tr>
+                    </thead>
+                    <tbody className="table-body">
+                      {completedTasks.map((task) => {
+                        const certificate = certificates.find(cert => cert.courseTitle === task.taskTitle);
+                        
+                        return (
+                          <tr key={task._id} className="table-row completed-row">
+                            <td className="table-cell">
+                              <div className="instructor-cell">
+                                <div className="instructor-avatar">
+                                  <User className="instructor-avatar-icon" />
+                                </div>
+                                <div className="instructor-info">
+                                  <div className="instructor-name">{getAdminNameString(task.assignedBy) || 'Admin'}</div>
+                                  {(() => {
+                                    const adminNameStr = getAdminNameString(task.assignedBy);
+                                    if (adminNameStr && typeof adminNameStr === 'string') {
+                                      return (
+                                        <div className="admin-name-assignedby">
+                                          Assigned by: {adminNameStr}
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                  <div className="assigned-date">
+                                    <Calendar className="date-icon" />
+                                    {new Date(task.createdAt).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="table-cell course-name">
+                              <div className="course-details">
+                                <div className="course-title">{task.taskTitle}</div>
+                                <div className="course-module">Module: {task.module}</div>
+                                {task.description && (
+                                  <div className="task-description">{task.description}</div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="table-cell deadline">
+                              <div className="deadline-info">
+                                <div className="deadline-date completed">
+                                  <Clock className="clock-icon" />
+                                  {certificate ? new Date(certificate.completionDate).toLocaleDateString() : 'Completed'}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="table-cell status">
+                              <div className="status-badge status-success">
+                                COMPLETED
+                              </div>
+                            </td>
+                            <td className="table-cell actions">
+                              {certificate ? (
+                                <div className="certificate-actions">
+                                  <button 
+                                    className="btn btn-certificate"
+                                    onClick={() => {
+                                      // Store the specific certificate data and navigate to certificate page
+                                      localStorage.setItem('selectedCertificate', JSON.stringify(certificate));
+                                      localStorage.setItem('courseCompleted', 'true');
+                                      localStorage.setItem('completedCourseName', certificate.courseTitle);
+                                      localStorage.setItem('lastGeneratedCertificate', JSON.stringify(certificate));
+                                      navigate('/certificate');
+                                    }}
+                                  >
+                                    View Certificate
+                                  </button>
+                                  
+                                </div>
+                              ) : (
+                                <span className="no-certificate">No Certificate</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
           </main>
         </div>
       </div>

@@ -44,11 +44,31 @@ const CertificatePage = () => {
         setLoading(true);
         setError(null);
 
-        // Check if this is a newly completed course
+        // Check if this is a newly completed course or a selected certificate from dashboard
         const isCourseCompleted = localStorage.getItem('courseCompleted') === 'true';
         const completedCourseName = localStorage.getItem('completedCourseName');
         const lastGeneratedCertificate = localStorage.getItem('lastGeneratedCertificate');
+        const selectedCertificate = localStorage.getItem('selectedCertificate');
 
+        // Priority 1: Check for selected certificate from dashboard
+        if (selectedCertificate) {
+          const certificate = JSON.parse(selectedCertificate);
+          setCertificateData(certificate);
+          setCourseCompleted(true);
+          setSuccess(true);
+          setLoading(false);
+          
+          // Clear the temporary data
+          localStorage.removeItem('selectedCertificate');
+          localStorage.removeItem('courseCompleted');
+          localStorage.removeItem('completedCourseName');
+          localStorage.removeItem('lastGeneratedCertificate');
+          
+          console.log('🎉 Displaying selected certificate from dashboard:', certificate);
+          return;
+        }
+
+        // Priority 2: Check if this is a newly completed course with generated certificate
         if (isCourseCompleted && lastGeneratedCertificate) {
           // Use the newly generated certificate data
           const certificate = JSON.parse(lastGeneratedCertificate);
@@ -63,6 +83,46 @@ const CertificatePage = () => {
           localStorage.removeItem('lastGeneratedCertificate');
           
           console.log('🎉 Displaying newly generated certificate:', certificate);
+          return;
+        }
+
+        // Priority 3: Check if this is a newly completed course (from quiz completion)
+        if (isCourseCompleted && completedCourseName) {
+          // Get user email from token
+          const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+          let userEmail = '';
+          if (token) {
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              userEmail = payload.email;
+            } catch (e) {
+              console.error('Error parsing token:', e);
+            }
+          }
+          
+          // Create a temporary certificate object for display
+          const tempCertificate = {
+            courseTitle: completedCourseName,
+            employeeName: employeeName,
+            employeeId: employeeId,
+            employeeEmail: userEmail,
+            date: new Date().toLocaleDateString(),
+            certificateId: `CERT-${Date.now()}`,
+            completionDate: new Date(),
+            completedModules: ['All Modules'],
+            totalModules: 1
+          };
+          
+          setCertificateData(tempCertificate);
+          setCourseCompleted(true);
+          setSuccess(true);
+          setLoading(false);
+          
+          // Clear the temporary data
+          localStorage.removeItem('courseCompleted');
+          localStorage.removeItem('completedCourseName');
+          
+          console.log('🎉 Displaying course completion certificate:', tempCertificate);
           return;
         }
 

@@ -533,6 +533,35 @@ const AssignedQuizPage = () => {
                                 <span>🔄 Generating your certificate...</span>
                               </div>
                             )}
+                            {!updatingProgress && (
+                              <div className="aqp-certificate-section">
+                                <button 
+                                  className="aqp-btn aqp-btn-certificate"
+                                  onClick={() => {
+                                    // Store course completion data for certificate page
+                                    localStorage.setItem('courseCompleted', 'true');
+                                    localStorage.setItem('completedCourseName', courseDetails?.name || courseDetails?.title || 'Course');
+                                    
+                                    // Get user email from token for certificate generation
+                                    const token = localStorage.getItem('token');
+                                    let userEmail = '';
+                                    if (token) {
+                                      try {
+                                        const payload = JSON.parse(atob(token.split('.')[1]));
+                                        userEmail = payload.email;
+                                      } catch (e) {
+                                        console.error('Error parsing token:', e);
+                                      }
+                                    }
+                                    
+                                    // Navigate to certificate page
+                                    navigate('/certificate');
+                                  }}
+                                >
+                                  🏆 View Certificate
+                                </button>
+                              </div>
+                            )}
                           </>
                         );
                       } else {
