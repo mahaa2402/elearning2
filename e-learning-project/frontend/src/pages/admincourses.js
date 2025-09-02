@@ -17,6 +17,7 @@ const CourseAdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const videoInputRefs = useRef({});
+  const modalRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -101,23 +102,19 @@ const CourseAdminDashboard = () => {
   // Ensure modal scrolls to top when opened
   useEffect(() => {
     if (showModal) {
-      // Force scroll to top immediately using multiple methods
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
+      // Scroll to top immediately when modal opens
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       
-      // Also scroll modal body to top if it exists
+      // Also ensure the modal content is visible after a short delay
       setTimeout(() => {
-        const modalBody = document.querySelector('.modal-body');
-        if (modalBody) {
-          modalBody.scrollTop = 0;
+        if (modalRef.current) {
+          modalRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start',
+            inline: 'nearest'
+          });
         }
-        // Also scroll the modal overlay to top
-        const modalOverlay = document.querySelector('.modal-overlay');
-        if (modalOverlay) {
-          modalOverlay.scrollTop = 0;
-        }
-      }, 10);
+      }, 100);
     }
   }, [showModal]);
 
@@ -165,30 +162,18 @@ const CourseAdminDashboard = () => {
     }
     setShowModal(true);
     
-    // Force scroll to top immediately using multiple methods
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
+    // Immediate scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // Force the page to stay at top
+    // Additional scroll to ensure modal is visible
     setTimeout(() => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    }, 10);
-    
-    // Also scroll modal body to top after a short delay
-    setTimeout(() => {
-      const modalBody = document.querySelector('.modal-body');
-      if (modalBody) {
-        modalBody.scrollTop = 0;
+      if (modalRef.current) {
+        modalRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start'
+        });
       }
-      // Also scroll the modal overlay to top
-      const modalOverlay = document.querySelector('.modal-overlay');
-      if (modalOverlay) {
-        modalOverlay.scrollTop = 0;
-      }
-    }, 50);
+    }, 200);
   };
 
   const closeModal = () => {
@@ -686,7 +671,7 @@ const handleSave = async () => {
             </div>
           )}
 
-          <div className="header-section">
+          <div className="header-sectionn">
             <div className="header-content">
               <div className="header-text">
                 <h1 className="header-title">Course Management</h1>
@@ -807,7 +792,7 @@ const handleSave = async () => {
           </div>
 
           {showModal && (
-            <div className="modal-overlay">
+            <div className="modal-overlay" ref={modalRef}>
               <div className="modal-content">
                 <div className="modal-header">
                   <h2 className="modal-title">

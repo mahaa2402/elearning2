@@ -337,7 +337,7 @@
 
 /* Enhanced header card */
 .task-assignment-page .header-card {
-  background: rgba(154, 143, 16, 0.98);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-2xl);
@@ -392,19 +392,6 @@
   gap: var(--spacing-6);
   position: relative;
   z-index: 2;
-  
-}
-.task-assignment-page .header-content {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: white;
-  background-size: 300% 100%;
-
-  color:black;
 }
 
 .task-assignment-page .header-icon-wrapper {
@@ -416,8 +403,9 @@
   justify-content: center;
   transition: all var(--transition-bounce);
   box-shadow: var(--shadow-lg);
+  background: linear-gradient(135deg, var(--primary-100), var(--primary-200));
+  border: 2px solid var(--primary-300);
   position: relative;
-
   cursor: pointer;
 }
 .task-assignment-page .header-icon-wrapper::before {
@@ -457,7 +445,7 @@
 .task-assignment-page .header-icon-wrapper:hover::after { opacity: 1; }
 
 .task-assignment-page .header-icon {
-  color: white;
+  color: var(--primary-600);
   z-index: 1;
   position: relative;
 }
@@ -465,19 +453,24 @@
 .task-assignment-page .header-title {
   font-size: var(--font-size-3xl);
   font-weight: 800;
-  background: linear-gradient(135deg, var(--gray-800), var(--primary-600));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary-700);
   margin: 0;
   line-height: 1.2;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .task-assignment-page .header-subtitle {
-  color: var(--gray-600);
+  color: var(--gray-700);
   margin: var(--spacing-1) 0 0 0;
   font-size: var(--font-size-lg);
   font-weight: 500;
+  line-height: 1.4;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 /* Enhanced form card shadows and borders */

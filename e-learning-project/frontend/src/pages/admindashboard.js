@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './admindashboard.css';
 import Sidebar from '../components/Sidebar';  // ✅ Import Sidebar component
@@ -30,43 +30,107 @@ const AdminDashboard = () => {
   const [selectedCategory, setSelectedCategory] = useState('ISP');
   const [selectedPeople, setSelectedPeople] = useState('All');
   const [selectedTopic, setSelectedTopic] = useState('All');
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Sample data for charts
-  const employeeData = [
-    { name: 'ISP', value: 8 },
-    { name: 'POSH', value: 12 },
-    { name: 'HR Law', value: 15 },
-    { name: 'Code of Conduct', value: 20 },
-    { name: 'Workplace Safety', value: 25 },
-    { name: 'Factory Act', value: 35 },
-    { name: 'CSO', value: 42 },
-    { name: 'Welding', value: 42 }
-  ];
+  // Fetch dashboard data from API
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
 
-  const passFailData = [
-    { name: 'Pass', value: 80, color: '#10B981' },
-    { name: 'Fail', value: 20, color: '#1F2937' }
-  ];
+        const response = await fetch('http://localhost:5000/api/admin/dashboard-statistics', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-  const weakestTopics = [
-    { name: 'Introduction to ISP', completion: 26, color: '#F59E0B' },
-    { name: 'Welding', completion: 48, color: '#EF4444' },
-    { name: 'Company Networking', completion: 64, color: '#EF4444' }
-  ];
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-  const strongestTopics = [
-    { name: 'POSH and code of conduct', completion: 95, color: '#10B981' },
-    { name: 'Cyber Security Basics', completion: 92, color: '#10B981' },
-    { name: 'Social Media Policies', completion: 89, color: '#10B981' }
-  ];
+        const result = await response.json();
+        if (result.success) {
+          setDashboardData(result.data);
+        } else {
+          throw new Error(result.error || 'Failed to fetch dashboard data');
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const leaderboardData = [
-    { name: 'Jesse Thomas', points: 637, correct: 98, rank: 1, trend: 'up' },
-    { name: 'Thisal Mathiyazhagan', points: 637, correct: 89, rank: 2, trend: 'down' },
-    { name: 'Helen Chuang', points: 637, correct: 89, rank: 3, trend: 'up' }
-  ];
+    fetchDashboardData();
+  }, [navigate]);
 
-  // Sidebar items are now handled by the Sidebar component
+  // Default data for fallback
+  const defaultData = {
+    totalUsers: 0,
+    activeCourses: 0,
+    assessmentsCompletedToday: 0,
+    certificatesIssuedThisWeek: 0,
+    passFailData: [
+      { name: 'Pass', value: 0, color: '#10B981' },
+      { name: 'Fail', value: 100, color: '#1F2937' }
+    ],
+    employeeData: [],
+    leaderboard: [],
+    weakestTopics: [],
+    strongestTopics: []
+  };
+
+  const data = dashboardData || defaultData;
+
+  // Loading and error states
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading dashboard data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-600 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <p className="text-red-600 font-medium">Error loading dashboard</p>
+            <p className="text-gray-600 text-sm mt-2">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -79,50 +143,15 @@ const AdminDashboard = () => {
         <div className="bg-white shadow-sm border-b border-gray-200 p-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
-            <button className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+            {/* <button className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
               <Download className="w-4 h-4 mr-2" />
               Download
-            </button>
+            </button> */}
           </div>
           
           {/* Filters */}
           <div className="flex gap-4 mt-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category:</label>
-              <select 
-                className="px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option>ISP</option>
-                <option>Safety</option>
-                <option>Compliance</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">People:</label>
-              <select 
-                className="px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700"
-                value={selectedPeople}
-                onChange={(e) => setSelectedPeople(e.target.value)}
-              >
-                <option>All</option>
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Topic:</label>
-              <select 
-                className="px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700"
-                value={selectedTopic}
-                onChange={(e) => setSelectedTopic(e.target.value)}
-              >
-                <option>All</option>
-                <option>Safety</option>
-                <option>Compliance</option>
-              </select>
-            </div>
+           
           </div>
         </div>
 
@@ -134,7 +163,7 @@ const AdminDashboard = () => {
                 <Users className="w-8 h-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">150</p>
+                  <p className="text-2xl font-bold text-gray-900">{data.totalUsers}</p>
                 </div>
               </div>
             </div>
@@ -144,7 +173,7 @@ const AdminDashboard = () => {
                 <BookOpen className="w-8 h-8 text-green-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Active Courses</p>
-                  <p className="text-2xl font-bold text-gray-900">6</p>
+                  <p className="text-2xl font-bold text-gray-900">{data.activeCourses}</p>
                 </div>
               </div>
             </div>
@@ -154,7 +183,7 @@ const AdminDashboard = () => {
                 <Award className="w-8 h-8 text-purple-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Assessments Completed Today</p>
-                  <p className="text-2xl font-bold text-gray-900">38</p>
+                  <p className="text-2xl font-bold text-gray-900">{data.assessmentsCompletedToday}</p>
                 </div>
               </div>
             </div>
@@ -164,57 +193,34 @@ const AdminDashboard = () => {
                 <Award className="w-8 h-8 text-orange-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Certificates Issued This Week</p>
-                  <p className="text-2xl font-bold text-gray-900">24</p>
+                  <p className="text-2xl font-bold text-gray-900">{data.certificatesIssuedThisWeek}</p>
                   <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
-                    <div className="bg-blue-600 h-1 rounded-full" style={{width: '60%'}}></div>
+                    <div 
+                      className="bg-blue-600 h-1 rounded-full" 
+                      style={{width: `${Math.min(100, (data.certificatesIssuedThisWeek / Math.max(data.totalUsers, 1)) * 100)}%`}}
+                    ></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Secondary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <Clock className="w-8 h-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Avg. Completion Time</p>
-                  <p className="text-2xl font-bold text-gray-900">24 mins</p>
-                  <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
-                    <div className="bg-blue-600 h-1 rounded-full" style={{width: '40%'}}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <TrendingUp className="w-8 h-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Knowledge Gain</p>
-                  <p className="text-2xl font-bold text-gray-900">+34%</p>
-                  <div className="w-full bg-gray-200 rounded-full h-1 mt-2">
-                    <div className="bg-green-600 h-1 rounded-full" style={{width: '70%'}}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
+          {/* Pass/Fail Chart */}
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-8">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Assessment Pass vs Fail Percentage</h3>
               <div className="flex items-center justify-center">
                 <ResponsiveContainer width={120} height={120}>
                   <PieChart>
                     <Pie
-                      data={passFailData}
+                      data={data.passFailData}
                       cx="50%"
                       cy="50%"
                       innerRadius={35}
                       outerRadius={55}
                       dataKey="value"
                     >
-                      {passFailData.map((entry, index) => (
+                      {data.passFailData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -231,7 +237,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <div className="ml-4 text-center">
-                  <p className="text-3xl font-bold text-gray-900">80%</p>
+                  <p className="text-3xl font-bold text-gray-900">{data.passFailData[0]?.value || 0}%</p>
                 </div>
               </div>
             </div>
@@ -245,15 +251,25 @@ const AdminDashboard = () => {
                 <option>Topic</option>
               </select>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={employeeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
+            {data.employeeData && data.employeeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data.employeeData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#3B82F6" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">📊</div>
+                  <p>No learning data available</p>
+                  <p className="text-sm">Data will appear when employees complete courses</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Topics Performance - Side by Side */}
@@ -262,7 +278,7 @@ const AdminDashboard = () => {
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Weakest Topics</h3>
               <div className="space-y-4">
-                {weakestTopics.map((topic, index) => (
+                {data.weakestTopics.length > 0 ? data.weakestTopics.map((topic, index) => (
                   <div key={index} className="flex items-center">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mr-3">
                       <div className="w-6 h-6 bg-gray-400 rounded"></div>
@@ -272,15 +288,17 @@ const AdminDashboard = () => {
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                         <div 
                           className="h-2 rounded-full" 
-                          style={{width: `${topic.completion}%`, backgroundColor: topic.color}}
+                          style={{width: `${Math.min(100, (topic.completion / Math.max(data.totalUsers, 1)) * 100)}%`, backgroundColor: topic.color}}
                         ></div>
                       </div>
                     </div>
                     <span className="ml-3 text-sm font-medium text-gray-600">
-                      {100 - topic.completion}% not completed
+                      {topic.completion} certificates
                     </span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-gray-500 text-center py-4">No data available</p>
+                )}
               </div>
             </div>
 
@@ -288,7 +306,7 @@ const AdminDashboard = () => {
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Strongest Topics</h3>
               <div className="space-y-4">
-                {strongestTopics.map((topic, index) => (
+                {data.strongestTopics.length > 0 ? data.strongestTopics.map((topic, index) => (
                   <div key={index} className="flex items-center">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mr-3">
                       <div className="w-6 h-6 bg-gray-400 rounded"></div>
@@ -298,15 +316,17 @@ const AdminDashboard = () => {
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                         <div 
                           className="h-2 rounded-full" 
-                          style={{width: `${topic.completion}%`, backgroundColor: topic.color}}
+                          style={{width: `${Math.min(100, (topic.completion / Math.max(data.totalUsers, 1)) * 100)}%`, backgroundColor: topic.color}}
                         ></div>
                       </div>
                     </div>
                     <span className="ml-3 text-sm font-medium text-gray-600">
-                      {topic.completion}% completed
+                      {topic.completion} certificates
                     </span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-gray-500 text-center py-4">No data available</p>
+                )}
               </div>
             </div>
           </div>
@@ -317,13 +337,13 @@ const AdminDashboard = () => {
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">User Leaderboard</h3>
               <div className="space-y-4">
-                {leaderboardData.map((user, index) => (
+                {data.leaderboard.length > 0 ? data.leaderboard.map((user, index) => (
                   <div key={index} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg">
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-gray-300 rounded-full mr-4"></div>
                       <div>
                         <p className="font-medium text-gray-900">{user.name}</p>
-                        <p className="text-sm text-gray-500">{user.points} Points • {user.correct}% Correct</p>
+                        <p className="text-sm text-gray-500">{user.points} Certificates • {user.correct}% Correct</p>
                       </div>
                     </div>
                     <div className="flex items-center">
@@ -335,7 +355,9 @@ const AdminDashboard = () => {
                       }`}></div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-gray-500 text-center py-4">No leaderboard data available</p>
+                )}
               </div>
             </div>
 
@@ -346,14 +368,14 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width={200} height={200}>
                   <PieChart>
                     <Pie
-                      data={passFailData}
+                      data={data.passFailData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
                       outerRadius={80}
                       dataKey="value"
                     >
-                      {passFailData.map((entry, index) => (
+                      {data.passFailData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -369,7 +391,7 @@ const AdminDashboard = () => {
                     <span className="text-gray-600">FAIL</span>
                   </div>
                   <div className="text-center">
-                    <p className="text-4xl font-bold text-gray-900">80%</p>
+                    <p className="text-4xl font-bold text-gray-900">{data.passFailData[0]?.value || 0}%</p>
                   </div>
                 </div>
               </div>

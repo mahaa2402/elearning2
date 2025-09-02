@@ -29,7 +29,8 @@ const {
   getAllEmployeesAssignedCourseProgress,
   testAssignedCourseCollection,
   createTestAssignment,
-  testCommonCourseProgress
+  testCommonCourseProgress,
+  getDashboardStats
 } = require('../controllers/Admin');
 const { authenticateToken } = require('../middleware/auth'); // Assuming you have this middleware
 
@@ -92,6 +93,10 @@ router.post('/test-common-course-progress', testCommonCourseProgress); // Public
 // Task Statistics
 router.get('/tasks/stats', authenticateToken, getAssignedTasksStats);
 router.get('/dashboard/stats', authenticateToken, getAssignedTasksStats);
+
+// ============ DASHBOARD STATISTICS ROUTE ============
+// Dashboard Statistics
+router.get('/dashboard-statistics', authenticateToken, getDashboardStats);
 
 // Employee Task Management
 router.get('/employee/:userId/tasks', authenticateToken, getAssignedTasksForUser);
