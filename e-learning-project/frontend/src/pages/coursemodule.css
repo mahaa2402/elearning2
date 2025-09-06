@@ -196,7 +196,6 @@ body {
 
 .vista-search-input:focus {
   outline: none;
-  ring: 2px solid #2563eb;
   border-color: transparent;
 }
 
@@ -221,7 +220,7 @@ body {
 
 .vista-select:focus {
   outline: none;
-  ring: 2px solid #2563eb;
+  /* ring: 2px solid #2563eb; */
   border-color: transparent;
 }
 

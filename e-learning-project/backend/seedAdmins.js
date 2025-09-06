@@ -1,18 +1,33 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const Admin = require('./models/Admin');
+require('dotenv').config(); // Load .env
 
-mongoose.connect('mongodb+srv://mahaashri:mahaashri%40123@e-learning-platform.wx1swy3.mongodb.net/elearning?retryWrites=true&w=majority').then(async () => {
-  await Admin.deleteMany({}); // optional, to clear old data
+(async () => {
+  try {
+    // Connect to MongoDB using .env
+    await mongoose.connect(process.env.MONGO_URI);
 
-  const admins = [
-    { name: 'admin1', email: 'admin1@gmail.com', password: await bcrypt.hash('admin1', 10) },
-    { name: 'admin2', email: 'admin2@gmail.com', password: await bcrypt.hash('admin2', 10) }
-  ];
+    await Admin.deleteMany({}); // optional, clears old data
 
-  await Admin.insertMany(admins);
-  console.log('✅ Admins seeded with hashed passwords');
-  mongoose.disconnect();
-}).catch(err => {
-  console.error('MongoDB connection error:', err);
-});
+    const admins = [
+      {
+        name: process.env.ADMIN1_NAME,
+        email: process.env.ADMIN1_EMAIL,
+        password: await bcrypt.hash(process.env.ADMIN1_PASSWORD, 10),
+      },
+      {
+        name: process.env.ADMIN2_NAME,
+        email: process.env.ADMIN2_EMAIL,
+        password: await bcrypt.hash(process.env.ADMIN2_PASSWORD, 10),
+      }
+    ];
+
+    await Admin.insertMany(admins);
+    console.log('✅ Admins seeded with hashed passwords');
+  } catch (err) {
+    console.error('❌ MongoDB connection error:', err);
+  } finally {
+    await mongoose.disconnect();
+  }
+})();
