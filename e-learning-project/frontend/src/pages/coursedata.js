@@ -4,7 +4,7 @@ const courseData = {
     lessons: {
       "ISP01": {
         title: "Introduction to Information Security & Data Protection",
-        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module+1_Course_1.mp4",
+        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module_1+Course+2+(1).mp4",
         content: [
           "What is Information Security?",
           "",
@@ -78,7 +78,7 @@ const courseData = {
       },
       "ISP03": {
         title: "Risk Assessment & Threat Management",
-        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module_3+Course_1.mp4",
+        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/VISTA_Module_3+Course+2.mp4",
         content: [
           "Understanding Information Security Risks:",
           "",
@@ -116,7 +116,7 @@ const courseData = {
       },
       "ISP04": {
         title: "Security Controls & Best Practices",
-        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module_4+Course_1.mp4",
+        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/VISTA_Module_4+Course+2.mp4",
         content: [
           "Types of Security Controls:",
           "",
@@ -173,7 +173,7 @@ const courseData = {
     lessons: {
       "POSH01": {
         title: "Overview & Legal Foundation of POSH Act",
-        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module_4+Course_1.mp4",
+        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/POSH-module1.mp4",
         content: [
           "Introduction to POSH Act:",
           "",
@@ -212,7 +212,7 @@ const courseData = {
       },
       "POSH02": {
         title: "Understanding Sexual Harassment: Definitions & Examples",
-        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module_4+Course_1.mp4",
+        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/POSH-module2.mp4",
         content: [
           "What Constitutes Sexual Harassment?",
           "",
@@ -263,7 +263,7 @@ const courseData = {
       },
       "POSH03": {
         title: "Complaint Mechanism & Investigation Process",
-        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module_4+Course_1.mp4",
+        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/POSH_module3.mp4",
         content: [
           "Internal Complaints Committee (ICC):",
           "",
@@ -315,7 +315,7 @@ const courseData = {
       },
       "POSH04": {
         title: "Rights, Responsibilities & Creating Safe Workplace",
-        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/Module_4+Course_1.mp4",
+        videoUrl: "https://intern-vista-work-space.s3.eu-north-1.amazonaws.com/e-learning/POSH-module4.mp4",
         content: [
           "Rights of Women Employees:",
           "",
