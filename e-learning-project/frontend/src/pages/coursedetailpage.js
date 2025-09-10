@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, Users, Award, BookOpen, Play, ChevronRight, User, Star } from 'lucide-react';
 import './coursedetailpage.css';
+import { Link } from 'react-router-dom';
+
 import { useNavigate, useParams } from 'react-router-dom';
 import staticCourseData from './coursedata'; // Renamed to avoid confusion
 
@@ -83,10 +85,24 @@ const CourseDetailPage = () => {
               <div className="course-detail-logo-subtitle">InnovativeLearning</div>
             </div>
             <nav className="course-detail-nav">
-              <a href="#" className="course-detail-nav-link">Home</a>
-              <a href="#" className="course-detail-nav-link active">Courses</a>
-              <a href="#" className="course-detail-nav-link">Certifications</a>
-              <a href="#" className="course-detail-nav-link">About</a>
+              <a href="/" className="course-detail-nav-link">Home</a>
+              <a href="#courses" className="course-detail-nav-link active">Courses</a>
+              <Link to="/userdashboard" className="course-detail-nav-link">Certifications</Link>
+              <Link
+                to="/#aboutus"
+                className="course-detail-nav-link"
+                onClick={e => {
+                  if (window.location.pathname === "/" && window.location.hash === "#aboutus") {
+                    const aboutSection = document.getElementById("aboutus");
+                    if (aboutSection) {
+                      aboutSection.scrollIntoView({ behavior: "smooth" });
+                    }
+                    e.preventDefault();
+                  }
+                }}
+              >
+                About
+              </Link>
             </nav>
             <div className="course-detail-header-actions">
             

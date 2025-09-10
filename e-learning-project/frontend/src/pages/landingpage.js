@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './landingpage.css';
 
 function LandingPage() {
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showScrollPopup, setShowScrollPopup] = useState(false);
   const [scrollAttempted, setScrollAttempted] = useState(false);
@@ -11,6 +12,18 @@ function LandingPage() {
   const [courses, setCourses] = useState([]); // Initialize as empty array
   const [loading, setLoading] = useState(false); // Add loading state
   const [error, setError] = useState(null); // Add error state
+
+  // Scroll to #aboutus if hash is present in URL
+  useEffect(() => {
+    if (location.hash === "#aboutus") {
+      setTimeout(() => {
+        const aboutSection = document.getElementById("aboutus");
+        if (aboutSection) {
+          aboutSection.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [location]);
 
   // Fetch courses when user is logged in
   useEffect(() => {
@@ -195,7 +208,7 @@ function LandingPage() {
       {/* Our Courses Section - Always visible when logged in */}
       {isLoggedIn && (
         <section className="courses-section">
-          <div className="container">
+          <div className="container" id="courses">
             <h2 style={{ textAlign: "center" }} className="section-title2">Our Courses</h2>
             
             {loading && (
